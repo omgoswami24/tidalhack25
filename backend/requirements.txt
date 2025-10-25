@@ -1,0 +1,10 @@
+Flask==2.3.3
+Flask-CORS==4.0.0
+opencv-python==4.8.1.78
+ultralytics==8.0.196
+google-generativeai==0.3.2
+boto3==1.28.62
+Pillow>=9.0.0
+numpy>=1.21.0
+python-dotenv==1.0.0
+requests==2.31.0

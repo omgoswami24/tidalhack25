@@ -1,0 +1,232 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'SafeSight Traffic Incident Detection Infrastructure'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: 'dev'
+    AllowedValues: ['dev', 'staging', 'prod']
+    Description: 'Environment name'
+  
+  AWSRegion:
+    Type: String
+    Default: 'us-west-2'
+    Description: 'AWS Region for deployment'
+  
+  S3BucketName:
+    Type: String
+    Default: 'safesight-video-storage'
+    Description: 'S3 bucket name for video storage'
+  
+  SNSTopicName:
+    Type: String
+    Default: 'safesight-alerts'
+    Description: 'SNS topic name for alerts'
+
+Resources:
+  # S3 Bucket for video storage
+  VideoStorageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${S3BucketName}-${AWSRegion}-${Environment}'
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteIncompleteMultipartUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+          - Id: TransitionToIA
+            Status: Enabled
+            Transitions:
+              - StorageClass: STANDARD_IA
+                TransitionInDays: 30
+          - Id: TransitionToGlacier
+            Status: Enabled
+            Transitions:
+              - StorageClass: GLACIER
+                TransitionInDays: 90
+
+  # DynamoDB Table for incidents
+  IncidentsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub 'safesight-incidents-${Environment}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: incident_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: incident_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: timestamp-index
+          KeySchema:
+            - AttributeName: timestamp
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  # SNS Topic for alerts
+  AlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${SNSTopicName}-${Environment}'
+      DisplayName: 'SafeSight Traffic Alerts'
+
+  # SNS Subscription for email alerts
+  EmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      TopicArn: !Ref AlertsTopic
+      Endpoint: !Ref EmailAddress
+
+  # Lambda function for processing incidents
+  IncidentProcessorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub 'safesight-incident-processor-${Environment}'
+      Runtime: python3.9
+      Handler: index.handler
+      Role: !GetAtt IncidentProcessorRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import os
+          
+          def handler(event, context):
+              print(f"Processing incident: {json.dumps(event)}")
+              
+              # Process incident data
+              for record in event.get('Records', []):
+                  if record['eventName'] == 'INSERT':
+                      incident = record['dynamodb']['NewImage']
+                      print(f"New incident detected: {incident['incident_id']['S']}")
+              
+              return {'statusCode': 200, 'body': 'Success'}
+      
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref AlertsTopic
+          S3_BUCKET: !Ref VideoStorageBucket
+
+  # IAM Role for Lambda function
+  IncidentProcessorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SafeSightLambdaPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Ref AlertsTopic
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub '${VideoStorageBucket}/*'
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                Resource: !GetAtt IncidentsTable.Arn
+
+  # Lambda trigger for DynamoDB
+  DynamoDBTrigger:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !GetAtt IncidentsTable.StreamArn
+      FunctionName: !Ref IncidentProcessorFunction
+      StartingPosition: LATEST
+
+  # IAM Role for EC2 instances
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/AmazonSNSFullAccess
+        - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+      Policies:
+        - PolicyName: SafeSightEC2Policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - rekognition:*
+                Resource: '*'
+
+  # Instance Profile for EC2
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref EC2Role
+
+  # CloudWatch Log Group
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/safesight-incident-processor-${Environment}'
+      RetentionInDays: 14
+
+Outputs:
+  S3BucketName:
+    Description: 'S3 Bucket for video storage'
+    Value: !Ref VideoStorageBucket
+    Export:
+      Name: !Sub '${AWS::StackName}-S3Bucket'
+
+  DynamoDBTableName:
+    Description: 'DynamoDB Table for incidents'
+    Value: !Ref IncidentsTable
+    Export:
+      Name: !Sub '${AWS::StackName}-DynamoDBTable'
+
+  SNSTopicArn:
+    Description: 'SNS Topic ARN for alerts'
+    Value: !Ref AlertsTopic
+    Export:
+      Name: !Sub '${AWS::StackName}-SNSTopic'
+
+  LambdaFunctionName:
+    Description: 'Lambda function for incident processing'
+    Value: !Ref IncidentProcessorFunction
+    Export:
+      Name: !Sub '${AWS::StackName}-LambdaFunction'
