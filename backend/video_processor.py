@@ -39,9 +39,9 @@ class VideoProcessor:
         for i, filename in enumerate(sorted(video_files)):
             video_path = os.path.join(self.videos_dir, filename)
             
-            # Determine if it's a crash video based on filename
-            is_crash = filename.startswith('V')  # V1, V3, V5, V9 are crash videos
-            is_normal = filename.startswith('r')  # r1, r2, r3, r4, r5 are normal videos
+            # Start with no incidents - detection happens in real-time
+            is_crash = False  # No pre-detection
+            is_normal = True  # All videos start as normal
             
             # Get video properties
             cap = cv2.VideoCapture(video_path)
@@ -226,11 +226,8 @@ class VideoProcessor:
                 significant_objects += 1
                 total_area += area
         
-        # More aggressive crash detection for demo
-        # Check filename for known crash videos
-        filename = getattr(self, 'current_filename', '')
-        if filename.startswith('V'):  # V1, V3, V5, V9 are crash videos
-            return 0.85  # High confidence for known crash videos
+        # Only detect crashes based on actual visual analysis
+        # Don't pre-detect based on filename
         
         # Crash indicators
         object_density = significant_objects / (frame.shape[0] * frame.shape[1] / 1000000)  # objects per megapixel
