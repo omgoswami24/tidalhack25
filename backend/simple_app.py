@@ -13,6 +13,7 @@ import boto3
 import google.generativeai as genai
 from crash_detector import CrashDetector
 from load_videos import get_video_data
+from aws_sns_service import sns_service
 
 # Load environment variables
 load_dotenv()
@@ -95,6 +96,43 @@ def health_check():
         'aws_available': AWS_AVAILABLE,
         'gemini_available': GEMINI_AVAILABLE
     })
+
+@app.route('/api/security-alert', methods=['POST'])
+def send_security_alert():
+    """Send security alert via AWS SNS"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['type', 'location', 'severity', 'description']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    'success': False,
+                    'error': f'Missing required field: {field}'
+                }), 400
+        
+        # Send alert via SNS
+        result = sns_service.send_security_alert(data)
+        
+        if result['success']:
+            return jsonify({
+                'success': True,
+                'message': 'Security alert sent successfully',
+                'message_id': result['message_id'],
+                'phone_number': result['phone_number']
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': result['error']
+            }), 500
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to send security alert: {str(e)}'
+        }), 500
 
 @app.route('/api/start-detection', methods=['POST'])
 def start_detection():

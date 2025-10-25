@@ -63,8 +63,8 @@ const VideoDetailView = ({ video, onClose }) => {
     }
   };
 
-  // Get location data for current video
-  const location = cameraLocations[video.name] || {
+  // Get location data for current video - use video.location for consistency
+  const location = cameraLocations[video.location] || {
     lat: 37.7749,
     lng: -122.4194,
     address: video.location
@@ -78,6 +78,37 @@ const VideoDetailView = ({ video, onClose }) => {
 
   const handleMapClick = () => {
     window.open(searchUrl, '_blank');
+  };
+
+  const handleSecurityAlert = async () => {
+    try {
+      const alertData = {
+        type: incidentDetails?.type || 'Traffic Incident',
+        location: video.location,
+        severity: incidentDetails?.severity || 'High',
+        description: incidentDetails?.description || `Incident detected on ${video.name}`,
+        timestamp: new Date().toISOString()
+      };
+
+      const response = await fetch('http://localhost:5001/api/security-alert', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(alertData)
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        alert(`🚨 Security Alert Sent!\n\nPhone: ${result.phone_number}\nMessage ID: ${result.message_id}`);
+      } else {
+        alert(`❌ Failed to send alert: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error sending security alert:', error);
+      alert('❌ Failed to send security alert. Please try again.');
+    }
   };
 
   // Mock detection data for the selected video
@@ -198,9 +229,9 @@ const VideoDetailView = ({ video, onClose }) => {
 
         {/* Main Content - Scrollable Layout */}
         <div className="flex-1 overflow-y-auto p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           {/* Live Camera Feed */}
-          <div className="lg:col-span-1">
+          <div className="xl:col-span-1">
             <Card className="bg-gray-800/80 border-gray-700/50 backdrop-blur-sm">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
@@ -351,14 +382,73 @@ const VideoDetailView = ({ video, onClose }) => {
             </Card>
           </div>
 
-          {/* Key Information */}
-          <div className="lg:col-span-1">
-            <Card className="bg-gray-800/80 border-gray-700/50 h-full backdrop-blur-sm">
+          {/* Right Side - Map and Information */}
+          <div className="xl:col-span-1 space-y-6">
+            {/* Map Section */}
+            <Card className="bg-gray-800/80 border-gray-700/50">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-white text-lg flex items-center">
+                  <MapPin className="w-5 h-5 mr-2" />
+                  Location Map
+                  <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse ml-auto"></div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="relative bg-gray-700 rounded-lg h-80 overflow-hidden cursor-pointer" onClick={handleMapClick}>
+                  {/* Google Maps Embed or Static Image */}
+                  {mapEmbedUrl.includes('embed') ? (
+                    <iframe
+                      src={mapEmbedUrl}
+                      width="100%"
+                      height="100%"
+                      style={{ border: 0 }}
+                      allowFullScreen=""
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      onLoad={() => setMapLoaded(true)}
+                      onError={() => setMapLoaded(true)}
+                      title={`Map of ${video.name}`}
+                    />
+                  ) : (
+                    <img
+                      src={staticMapUrl}
+                      alt={`Map of ${video.name}`}
+                      className="w-full h-full object-cover"
+                      onLoad={() => setMapLoaded(true)}
+                      onError={() => setMapLoaded(true)}
+                    />
+                  )}
+                  
+                  {/* Loading overlay */}
+                  {!mapLoaded && (
+                    <div className="absolute inset-0 bg-gray-700 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                        <p className="text-gray-300 text-sm">Loading map...</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Click overlay */}
+                  <div className="absolute inset-0 bg-transparent cursor-pointer" onClick={handleMapClick}>
+                    <div className="absolute top-3 left-3 bg-black/80 text-white px-3 py-2 rounded-lg text-sm backdrop-blur-sm">
+                      Click to open in Google Maps
+                    </div>
+                    <div className="absolute bottom-3 right-3 bg-red-600/90 text-white px-3 py-2 rounded-lg text-sm backdrop-blur-sm">
+                      📍 {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Key Information */}
+            <Card className="bg-gray-800/80 border-gray-700/50">
               <CardHeader className="pb-4">
                 <CardTitle className="text-white text-lg">Key Information</CardTitle>
               </CardHeader>
               <CardContent className="p-4">
-                <div className="grid grid-cols-3 gap-6 h-full">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Sentiment Card */}
                   <div className="bg-blue-600/20 border border-blue-500/30 rounded-lg p-4 flex flex-col items-center justify-center backdrop-blur-sm">
                     <div className="text-blue-400 font-bold text-lg mb-2">Neutral</div>
@@ -385,13 +475,12 @@ const VideoDetailView = ({ video, onClose }) => {
             </Card>
           </div>
 
-          {/* Additional Information */}
-          <div className="lg:col-span-1">
-            <Card className="bg-gray-800/80 border-gray-700/50 h-full backdrop-blur-sm">
+            {/* Additional Information */}
+            <Card className="bg-gray-800/80 border-gray-700/50">
               <CardHeader className="pb-4">
                 <CardTitle className="text-white text-lg">Additional Information</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4 h-full overflow-y-auto p-4">
+              <CardContent className="space-y-4 p-4">
                 {incidentDetails ? (
                   incidentDetails.additionalInfo.map((info, index) => (
                     <div key={index} className="bg-gray-700/60 rounded-lg p-4 backdrop-blur-sm">
@@ -411,6 +500,32 @@ const VideoDetailView = ({ video, onClose }) => {
                     </div>
                   </>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* Action Buttons */}
+            <Card className="bg-gray-800/80 border-gray-700/50">
+              <CardContent className="p-6">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <Button 
+                    onClick={onClose} 
+                    variant="outline" 
+                    className="flex-1 bg-gray-700 border-gray-600 text-white hover:bg-gray-600"
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Dismiss
+                  </Button>
+                  
+                  {incidentDetails && (
+                    <Button 
+                      onClick={handleSecurityAlert}
+                      className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      <AlertTriangle className="w-4 h-4 mr-2" />
+                      Alert Security (281-726-5923)
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>
