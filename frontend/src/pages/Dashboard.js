@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import SurveillanceGrid from '../components/SurveillanceGrid';
 import IncidentFeed from '../components/IncidentFeed';
 import StatusPanel from '../components/StatusPanel';
+import VideoDetailView from '../components/VideoDetailView';
 import { AlertTriangle, Camera, Settings, Upload, BarChart3 } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
 
@@ -18,6 +19,8 @@ const Dashboard = () => {
     activeIncidents: 0,
     lastDetection: null
   });
+  const [selectedVideo, setSelectedVideo] = useState(null);
+  const [showVideoDetail, setShowVideoDetail] = useState(false);
   const { toast } = useToast();
 
   // Handle incident detection from surveillance grid
@@ -36,7 +39,17 @@ const Dashboard = () => {
     });
   };
 
-  // Remove old handlers - now handled by SurveillanceGrid
+  // Handle video click
+  const handleVideoClick = (video) => {
+    setSelectedVideo(video);
+    setShowVideoDetail(true);
+  };
+
+  // Close video detail view
+  const closeVideoDetail = () => {
+    setShowVideoDetail(false);
+    setSelectedVideo(null);
+  };
 
   return (
     <div className="min-h-screen bg-gray-900">
@@ -70,14 +83,10 @@ const Dashboard = () => {
       {/* Main Content */}
       <div className="p-6">
         <Tabs defaultValue="surveillance" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 bg-gray-800">
+          <TabsList className="grid w-full grid-cols-3 bg-gray-800">
             <TabsTrigger value="surveillance" className="data-[state=active]:bg-gray-700">
               <Camera className="w-4 h-4 mr-2" />
               Surveillance
-            </TabsTrigger>
-            <TabsTrigger value="upload" className="data-[state=active]:bg-gray-700">
-              <Upload className="w-4 h-4 mr-2" />
-              Upload
             </TabsTrigger>
             <TabsTrigger value="incidents" className="data-[state=active]:bg-gray-700">
               <AlertTriangle className="w-4 h-4 mr-2" />
@@ -90,24 +99,7 @@ const Dashboard = () => {
           </TabsList>
 
           <TabsContent value="surveillance" className="space-y-6">
-            <SurveillanceGrid onIncidentDetected={handleIncidentDetected} />
-          </TabsContent>
-
-          <TabsContent value="upload" className="space-y-6">
-            <Card className="bg-gray-800 border-gray-700">
-              <CardHeader>
-                <CardTitle className="text-white">Upload Video Files</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center">
-                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-300 mb-4">Upload car crash videos for analysis</p>
-                  <Button className="bg-blue-600 hover:bg-blue-700">
-                    Choose Files
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <SurveillanceGrid onIncidentDetected={handleIncidentDetected} onVideoClick={handleVideoClick} />
           </TabsContent>
 
           <TabsContent value="incidents">
@@ -156,6 +148,14 @@ const Dashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Video Detail Modal */}
+      {showVideoDetail && selectedVideo && (
+        <VideoDetailView 
+          video={selectedVideo} 
+          onClose={closeVideoDetail} 
+        />
+      )}
     </div>
   );
 };

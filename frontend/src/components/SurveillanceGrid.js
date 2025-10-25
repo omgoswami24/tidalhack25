@@ -4,7 +4,7 @@ import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { AlertTriangle, Wifi, WifiOff, Play, Pause, Square, Eye, AlertCircle } from 'lucide-react';
 
-const SurveillanceGrid = ({ onIncidentDetected }) => {
+const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
   const [videos, setVideos] = useState([]);
   const [detectionActive, setDetectionActive] = useState(false);
   const [incidents, setIncidents] = useState([]);
@@ -15,17 +15,24 @@ const SurveillanceGrid = ({ onIncidentDetected }) => {
     activeIncidents: 0
   });
 
-  // Mock video feeds with different scenarios
+  // Mock video feeds with different crash scenarios
   const mockVideoFeeds = [
     {
       id: 1,
       name: 'Highway 101 - Northbound',
       location: 'Highway 101, Mile 45.2, San Francisco, CA',
       status: 'online',
-      hasIncident: false,
-      incidentType: null,
-      objectsCount: 3,
-      lastDetection: null
+      hasIncident: true,
+      incidentType: 'collision',
+      objectsCount: 4,
+      lastDetection: new Date(Date.now() - 2 * 60 * 1000), // 2 minutes ago
+      crashDetails: {
+        type: 'Multi-vehicle collision',
+        severity: 'Critical',
+        vehiclesInvolved: 3,
+        injuries: 'Multiple injuries reported',
+        description: 'Three vehicles involved in high-speed collision with debris scattered across lanes'
+      }
     },
     {
       id: 2,
@@ -35,17 +42,25 @@ const SurveillanceGrid = ({ onIncidentDetected }) => {
       hasIncident: false,
       incidentType: null,
       objectsCount: 2,
-      lastDetection: null
+      lastDetection: null,
+      crashDetails: null
     },
     {
       id: 3,
       name: 'Highway 880 - Eastbound',
       location: 'Highway 880, Oakland, CA',
       status: 'online',
-      hasIncident: false,
-      incidentType: null,
+      hasIncident: true,
+      incidentType: 'fire',
       objectsCount: 1,
-      lastDetection: null
+      lastDetection: new Date(Date.now() - 5 * 60 * 1000), // 5 minutes ago
+      crashDetails: {
+        type: 'Vehicle fire',
+        severity: 'High',
+        vehiclesInvolved: 1,
+        injuries: 'Driver evacuated safely',
+        description: 'Vehicle fire with visible flames and smoke'
+      }
     },
     {
       id: 4,
@@ -54,8 +69,9 @@ const SurveillanceGrid = ({ onIncidentDetected }) => {
       status: 'online',
       hasIncident: false,
       incidentType: null,
-      objectsCount: 4,
-      lastDetection: null
+      objectsCount: 3,
+      lastDetection: null,
+      crashDetails: null
     },
     {
       id: 5,
@@ -65,17 +81,25 @@ const SurveillanceGrid = ({ onIncidentDetected }) => {
       hasIncident: false,
       incidentType: null,
       objectsCount: 0,
-      lastDetection: null
+      lastDetection: null,
+      crashDetails: null
     },
     {
       id: 6,
       name: 'I-80 - Westbound',
       location: 'I-80, Berkeley, CA',
       status: 'online',
-      hasIncident: false,
-      incidentType: null,
+      hasIncident: true,
+      incidentType: 'breakdown',
       objectsCount: 2,
-      lastDetection: null
+      lastDetection: new Date(Date.now() - 1 * 60 * 1000), // 1 minute ago
+      crashDetails: {
+        type: 'Vehicle breakdown with debris',
+        severity: 'Medium',
+        vehiclesInvolved: 1,
+        injuries: 'No injuries reported',
+        description: 'Vehicle breakdown with debris on roadway causing traffic backup'
+      }
     }
   ];
 
@@ -217,11 +241,12 @@ const SurveillanceGrid = ({ onIncidentDetected }) => {
         {videos.map((video) => (
           <Card 
             key={video.id} 
-            className={`relative overflow-hidden transition-all duration-300 ${
+            className={`relative overflow-hidden transition-all duration-300 cursor-pointer hover:scale-105 ${
               video.hasIncident 
                 ? 'ring-4 ring-red-500 animate-pulse bg-red-900/20' 
-                : 'bg-gray-800 border-gray-700'
+                : 'bg-gray-800 border-gray-700 hover:border-gray-600'
             }`}
+            onClick={() => onVideoClick?.(video)}
           >
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
