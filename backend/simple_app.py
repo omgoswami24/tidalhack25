@@ -208,5 +208,5 @@ if __name__ == '__main__':
     print("🚀 SafeSight Backend Starting...")
     print(f"✅ AWS Available: {AWS_AVAILABLE}")
     print(f"✅ Gemini Available: {GEMINI_AVAILABLE}")
-    print("🌐 Backend running on http://localhost:5000")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    print("🌐 Backend running on http://localhost:5001")
+    app.run(debug=True, host='0.0.0.0', port=5001)
