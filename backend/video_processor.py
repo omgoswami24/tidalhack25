@@ -10,12 +10,29 @@ import numpy as np
 from datetime import datetime
 from typing import List, Dict, Tuple, Optional
 import time
+import base64
+import google.generativeai as genai
 
 class VideoProcessor:
     def __init__(self, videos_dir="../Videos"):
         self.videos_dir = videos_dir
         self.processed_videos = []
         self.crash_detector = None
+        self.gemini_model = None
+        
+        # Initialize Gemini VLM
+        try:
+            import os
+            api_key = os.getenv('GEMINI_API_KEY')
+            if api_key:
+                genai.configure(api_key=api_key)
+                self.gemini_model = genai.GenerativeModel('gemini-2.0-flash')
+                print("✅ Gemini VLM initialized")
+            else:
+                print("⚠️  GEMINI_API_KEY not found")
+        except Exception as e:
+            print(f"⚠️  Gemini VLM not available: {e}")
+            self.gemini_model = None
         
         # Initialize crash detector if OpenCV is available
         try:
@@ -39,9 +56,9 @@ class VideoProcessor:
         for i, filename in enumerate(sorted(video_files)):
             video_path = os.path.join(self.videos_dir, filename)
             
-            # Start with no incidents - detection happens in real-time
-            is_crash = False  # No pre-detection
-            is_normal = True  # All videos start as normal
+            # All videos start as normal - no pre-detection
+            is_crash = False
+            is_normal = True
             
             # Get video properties
             cap = cv2.VideoCapture(video_path)
@@ -156,50 +173,24 @@ class VideoProcessor:
         frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         duration = frame_count / fps if fps > 0 else 0
         
-        # Sample frames for analysis
-        frame_indices = np.linspace(0, frame_count - 1, sample_frames, dtype=int)
+        # No pre-processing - all videos start normal
+        # Detection happens in real-time only
         detections = []
         objects_count = 0
         
-        for i, frame_idx in enumerate(frame_indices):
-            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
-            ret, frame = cap.read()
-            
-            if not ret:
-                continue
-            
-            # Simple object detection (count contours as objects)
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-            edges = cv2.Canny(blurred, 50, 150)
-            contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            
-            # Count significant objects
-            significant_objects = 0
-            for contour in contours:
-                area = cv2.contourArea(contour)
-                if 1000 < area < 50000:  # Filter by area
-                    significant_objects += 1
-            
-            objects_count = max(objects_count, significant_objects)
-            
-            # Simple crash detection based on object density and movement
-            crash_probability = self._detect_crash_simple(frame, contours)
-            
-            if crash_probability > 0.7:
-                detections.append({
-                    'frame': frame_idx,
-                    'timestamp': frame_idx / fps,
-                    'confidence': crash_probability,
-                    'objects': significant_objects,
-                    'description': 'Potential crash detected'
-                })
+        # Just count objects for display purposes
+        sample_frame = frame_count // 2  # Get middle frame
+        cap.set(cv2.CAP_PROP_POS_FRAMES, sample_frame)
+        ret, frame = cap.read()
+        
+        if ret and frame is not None:
+            objects_count = self._estimate_objects_in_frame(frame)
         
         cap.release()
         
-        # Determine if video contains crashes
-        has_crash = len(detections) > 0 or any(d['confidence'] > 0.7 for d in detections)
-        max_confidence = max([d['confidence'] for d in detections]) if detections else 0
+        # All videos start as normal - no pre-detection
+        has_crash = False
+        max_confidence = 0
         
         return {
             'hasCrash': has_crash,
@@ -210,6 +201,85 @@ class VideoProcessor:
             'duration': duration,
             'fps': fps
         }
+    
+    def analyze_frame_with_gemini(self, frame: np.ndarray) -> Dict:
+        """Analyze frame using Gemini VLM for crash detection"""
+        if self.gemini_model is None:
+            return {'has_crash': False, 'confidence': 0.0, 'description': 'Gemini not available'}
+        
+        try:
+            # Convert frame to base64 for Gemini
+            _, buffer = cv2.imencode('.jpg', frame)
+            frame_base64 = base64.b64encode(buffer).decode('utf-8')
+            
+            # Create prompt for Gemini
+            prompt = """
+            Analyze this traffic camera frame for car crashes or accidents. Look for:
+            - Vehicle collisions or impacts
+            - Damaged vehicles
+            - Debris on the road
+            - Emergency vehicles
+            - Unusual traffic patterns indicating an accident
+            - Smoke, fire, or other signs of vehicle damage
+            
+            Respond with a JSON object containing:
+            {
+                "has_crash": true/false,
+                "confidence": 0.0-1.0,
+                "crash_type": "collision/breakdown/fire/other",
+                "description": "Brief description of what you see",
+                "severity": "low/medium/high"
+            }
+            """
+            
+            # Generate content with Gemini
+            response = self.gemini_model.generate_content([
+                prompt,
+                {
+                    "mime_type": "image/jpeg",
+                    "data": frame_base64
+                }
+            ])
+            
+            # Parse response
+            response_text = response.text.strip()
+            if response_text.startswith('```json'):
+                response_text = response_text[7:-3]
+            elif response_text.startswith('```'):
+                response_text = response_text[3:-3]
+            
+            result = json.loads(response_text)
+            return result
+            
+        except Exception as e:
+            print(f"Error in Gemini analysis: {e}")
+            return {'has_crash': False, 'confidence': 0.0, 'description': f'Analysis error: {str(e)}'}
+    
+    def _estimate_objects_from_gemini(self, gemini_result: Dict) -> int:
+        """Estimate object count from Gemini analysis"""
+        description = gemini_result.get('description', '').lower()
+        # Simple heuristic based on description
+        if 'multiple vehicles' in description or 'several cars' in description:
+            return 3
+        elif 'vehicle' in description or 'car' in description:
+            return 1
+        else:
+            return 0
+    
+    def _estimate_objects_in_frame(self, frame: np.ndarray) -> int:
+        """Estimate objects in frame using OpenCV"""
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        edges = cv2.Canny(blurred, 50, 150)
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        significant_objects = 0
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            if 1000 < area < 50000:
+                significant_objects += 1
+        
+        return significant_objects
     
     def _detect_crash_simple(self, frame: np.ndarray, contours: List) -> float:
         """Simple crash detection based on visual cues"""

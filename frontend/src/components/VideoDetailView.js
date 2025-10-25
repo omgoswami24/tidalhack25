@@ -183,8 +183,8 @@ const VideoDetailView = ({ video, onClose }) => {
   if (!video) return null;
 
   return (
-    <div className="fixed inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-gray-900/40 z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-gray-900/95 backdrop-blur-sm rounded-2xl w-full max-w-7xl h-full max-h-[95vh] overflow-hidden shadow-2xl border border-gray-700/50">
+    <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-gray-900 rounded-lg w-full max-w-7xl h-full max-h-[95vh] overflow-hidden shadow-2xl border border-gray-700">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-700/50">
           <div>
@@ -196,11 +196,12 @@ const VideoDetailView = ({ video, onClose }) => {
           </Button>
         </div>
 
-        {/* Main Content Grid - 2x2 Layout */}
-        <div className="grid grid-cols-2 grid-rows-2 h-[calc(100vh-120px)] gap-6 p-6">
-          {/* Live Camera Feed - Top Left (50% width, 50% height) */}
-          <div className="col-span-1 row-span-1">
-            <Card className="bg-gray-800/80 border-gray-700/50 h-full backdrop-blur-sm">
+        {/* Main Content - Scrollable Layout */}
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Live Camera Feed */}
+          <div className="lg:col-span-1">
+            <Card className="bg-gray-800/80 border-gray-700/50 backdrop-blur-sm">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-white text-xl flex items-center">
@@ -219,8 +220,8 @@ const VideoDetailView = ({ video, onClose }) => {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="h-full p-0">
-                <div className="relative bg-black rounded-lg h-full overflow-hidden">
+              <CardContent className="p-0">
+                <div className="relative bg-black rounded-lg h-80 overflow-hidden">
                   {/* Video Player */}
                   {video.filename ? (
                     <video
@@ -350,8 +351,8 @@ const VideoDetailView = ({ video, onClose }) => {
             </Card>
           </div>
 
-          {/* Key Information - Bottom Left (50% width, 50% height) */}
-          <div className="col-span-1 row-span-1">
+          {/* Key Information */}
+          <div className="lg:col-span-1">
             <Card className="bg-gray-800/80 border-gray-700/50 h-full backdrop-blur-sm">
               <CardHeader className="pb-4">
                 <CardTitle className="text-white text-lg">Key Information</CardTitle>
@@ -384,8 +385,8 @@ const VideoDetailView = ({ video, onClose }) => {
             </Card>
           </div>
 
-          {/* Additional Information - Bottom Right (50% width, 50% height) */}
-          <div className="col-span-1 row-span-1">
+          {/* Additional Information */}
+          <div className="lg:col-span-1">
             <Card className="bg-gray-800/80 border-gray-700/50 h-full backdrop-blur-sm">
               <CardHeader className="pb-4">
                 <CardTitle className="text-white text-lg">Additional Information</CardTitle>
@@ -412,6 +413,7 @@ const VideoDetailView = ({ video, onClose }) => {
                 )}
               </CardContent>
             </Card>
+          </div>
           </div>
         </div>
       </div>

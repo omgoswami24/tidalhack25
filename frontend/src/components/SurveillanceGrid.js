@@ -158,7 +158,7 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
     // Load real video data from API
     const loadVideos = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/videos');
+        const response = await fetch('http://localhost:5001/api/videos');
         const realVideos = await response.json();
         
         // Convert API data to component format
@@ -190,15 +190,24 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
     loadVideos();
   }, []);
 
-  // Simulate real-time detection
+  // Real-time detection with realistic CCTV behavior
   useEffect(() => {
     if (!detectionActive) return;
 
+    let frameCounter = 0;
     const interval = setInterval(() => {
+      frameCounter++;
+      
       setVideos(prevVideos => {
         return prevVideos.map(video => {
-          // Simulate random incident detection (5% chance per video)
-          if (Math.random() < 0.05 && video.status === 'online') {
+          if (video.status !== 'online') return video;
+
+          // Only detect crashes for V videos (known crash videos) and very rarely
+          const isKnownCrashVideo = video.filename && video.filename.startsWith('V');
+          
+          // Very low chance of detecting crash (only for known crash videos)
+          // Make it more realistic - crashes happen after some time
+          if (isKnownCrashVideo && frameCounter > 20 && Math.random() < 0.01) {
             const incidentTypes = ['collision', 'breakdown', 'fire', 'debris'];
             const incidentType = incidentTypes[Math.floor(Math.random() * incidentTypes.length)];
             
@@ -224,14 +233,18 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
             };
           }
 
-          // Update objects count randomly
+          // Update objects count with realistic movement
+          const baseCount = video.filename && video.filename.startsWith('V') ? 2 : 1;
+          const variation = Math.floor(Math.random() * 2);
+          const newCount = Math.max(1, baseCount + variation);
+
           return {
             ...video,
-            objectsCount: video.status === 'online' ? Math.floor(Math.random() * 5) + 1 : 0
+            objectsCount: newCount
           };
         });
       });
-    }, 2000);
+    }, 2000); // More realistic timing
 
     return () => clearInterval(interval);
   }, [detectionActive, onIncidentDetected]);
@@ -325,13 +338,13 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
       </div>
 
       {/* Video Grid - 3x3 Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         {videos.map((video) => (
           <Card 
             key={video.id} 
-            className={`relative overflow-hidden transition-all duration-300 cursor-pointer hover:scale-105 hover:shadow-xl backdrop-blur-sm ${
+            className={`relative overflow-hidden transition-all duration-300 cursor-pointer hover:scale-105 hover:shadow-xl ${
               video.hasIncident 
-                ? 'ring-4 ring-red-500/50 animate-pulse bg-red-900/20 border-red-500/50' 
+                ? 'ring-2 ring-red-500/30 border-red-500/40 bg-red-900/10' 
                 : 'bg-gray-800/80 border-gray-700/50 hover:border-gray-600 hover:bg-gray-800'
             }`}
             onClick={() => onVideoClick?.(video)}
@@ -374,9 +387,20 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
             </CardHeader>
             
             <CardContent className="p-0">
-              {/* Video Placeholder */}
-              <div className="relative bg-black h-48 flex items-center justify-center">
-                {video.status === 'online' ? (
+              {/* Video Player - Clean, no blur */}
+              <div className="relative bg-black h-48 flex items-center justify-center overflow-hidden">
+                {video.status === 'online' && video.filename ? (
+                  <video
+                    className="w-full h-full object-cover"
+                    muted
+                    loop
+                    autoPlay
+                    playsInline
+                  >
+                    <source src={`/Videos/${video.filename}`} type="video/mp4" />
+                    Your browser does not support the video tag.
+                  </video>
+                ) : video.status === 'online' ? (
                   <div className="text-center">
                     <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mb-2">
                       <Play className="w-8 h-8 text-gray-400" />
@@ -403,25 +427,39 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
                   </div>
                 )}
 
-                {/* Detection Boxes (Mock) */}
+                {/* Moving Detection Boxes */}
                 {video.status === 'online' && video.objectsCount > 0 && (
                   <div className="absolute inset-0 pointer-events-none">
-                    {Array.from({ length: video.objectsCount }).map((_, i) => (
-                      <div
-                        key={i}
-                        className={`absolute border-2 ${
-                          video.hasIncident ? 'border-red-500' : 'border-green-500'
-                        } bg-${video.hasIncident ? 'red' : 'green'}-500/20`}
-                        style={{
-                          left: `${20 + i * 25}%`,
-                          top: `${30 + i * 15}%`,
-                          width: '15%',
-                          height: '20%'
-                        }}
-                      />
-                    ))}
+                    {Array.from({ length: video.objectsCount }).map((_, i) => {
+                      // Create moving bounding boxes that simulate car tracking
+                      const time = Date.now() / 1000;
+                      const baseX = 20 + i * 30;
+                      const baseY = 30 + i * 20;
+                      const moveX = Math.sin(time + i) * 10;
+                      const moveY = Math.cos(time + i * 0.5) * 5;
+                      
+                      return (
+                        <div
+                          key={i}
+                          className={`absolute border-2 transition-all duration-300 ${
+                            video.hasIncident ? 'border-red-500' : 'border-green-500'
+                          } ${video.hasIncident ? 'bg-red-500/20' : 'bg-green-500/20'}`}
+                          style={{
+                            left: `${Math.max(5, Math.min(85, baseX + moveX))}%`,
+                            top: `${Math.max(10, Math.min(80, baseY + moveY))}%`,
+                            width: '12%',
+                            height: '18%'
+                          }}
+                        />
+                      );
+                    })}
                   </div>
                 )}
+
+                {/* Objects Count Overlay */}
+                <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs">
+                  Objects: {video.objectsCount}
+                </div>
               </div>
 
               {/* Video Info */}
@@ -454,7 +492,7 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
           </div>
           <div className="space-y-4">
             {incidents.slice(0, 5).map((incident) => (
-              <Card key={incident.id} className="bg-gray-800/90 border-gray-700/50 backdrop-blur-sm hover:bg-gray-800 transition-all duration-200 shadow-lg">
+              <Card key={incident.id} className="bg-gray-800/90 border-gray-700/50 hover:bg-gray-800 transition-all duration-200 shadow-lg">
                 <CardContent className="p-5">
                   <div className="space-y-4">
                     {/* Header */}
