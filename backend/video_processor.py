@@ -14,7 +14,7 @@ import base64
 import google.generativeai as genai
 
 class VideoProcessor:
-    def __init__(self, videos_dir="../Videos"):
+    def __init__(self, videos_dir="../frontend/public/Videos"):
         self.videos_dir = videos_dir
         self.processed_videos = []
         self.crash_detector = None
@@ -22,11 +22,12 @@ class VideoProcessor:
         
         # Initialize Gemini VLM
         try:
-            import os
+            from dotenv import load_dotenv
+            load_dotenv('../safesight.env')
             api_key = os.getenv('GEMINI_API_KEY')
             if api_key:
                 genai.configure(api_key=api_key)
-                self.gemini_model = genai.GenerativeModel('gemini-2.0-flash')
+                self.gemini_model = genai.GenerativeModel('gemini-1.5-pro')
                 print("✅ Gemini VLM initialized")
             else:
                 print("⚠️  GEMINI_API_KEY not found")
@@ -101,6 +102,7 @@ class VideoProcessor:
         
         return videos
     
+    
     def _get_location_for_video(self, filename: str) -> str:
         """Get location based on video filename"""
         locations = {
@@ -109,38 +111,38 @@ class VideoProcessor:
             'r3.mp4': 'Highway 880, Oakland, CA',
             'r4.mp4': 'Highway 5, Sacramento, CA',
             'r5.mp4': 'Highway 101, Palo Alto, CA',
-            'V1.mp4': 'Highway 101, Critical Incident Zone, San Francisco, CA',
-            'V3.mp4': 'I-280, Emergency Response Area, San Jose, CA',
-            'V5.mp4': 'Highway 880, Accident Scene, Oakland, CA',
-            'V9.mp4': 'Highway 5, Collision Site, Sacramento, CA'
+            'good1.mp4': 'Highway 101, Critical Incident Zone, San Francisco, CA',
+            'good2.mp4': 'I-280, Emergency Response Area, San Jose, CA',
+            'good3.mp4': 'Highway 880, Accident Scene, Oakland, CA',
+            'good4.mp4': 'Highway 5, Collision Site, Sacramento, CA'
         }
         return locations.get(filename, f'Unknown Location - {filename}')
     
     def _get_crash_details(self, filename: str) -> Dict:
         """Get crash details based on video filename"""
         crash_details = {
-            'V1.mp4': {
+            'good1.mp4': {
                 'type': 'Multi-vehicle collision',
                 'severity': 'Critical',
                 'vehiclesInvolved': 3,
                 'injuries': 'Multiple injuries reported',
                 'description': 'High-speed collision with debris scattered across multiple lanes'
             },
-            'V3.mp4': {
+            'good2.mp4': {
                 'type': 'Vehicle fire and collision',
                 'severity': 'High',
                 'vehiclesInvolved': 2,
                 'injuries': 'Driver evacuated safely',
                 'description': 'Vehicle collision resulting in fire with visible flames and smoke'
             },
-            'V5.mp4': {
+            'good3.mp4': {
                 'type': 'Vehicle breakdown with debris',
                 'severity': 'Medium',
                 'vehiclesInvolved': 1,
                 'injuries': 'No injuries reported',
                 'description': 'Vehicle breakdown causing debris on roadway and traffic backup'
             },
-            'V9.mp4': {
+            'good4.mp4': {
                 'type': 'Severe multi-vehicle collision',
                 'severity': 'Critical',
                 'vehiclesInvolved': 4,
@@ -173,24 +175,37 @@ class VideoProcessor:
         frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         duration = frame_count / fps if fps > 0 else 0
         
-        # No pre-processing - all videos start normal
-        # Detection happens in real-time only
+        # Use Gemini to analyze frames for crashes
         detections = []
         objects_count = 0
-        
-        # Just count objects for display purposes
-        sample_frame = frame_count // 2  # Get middle frame
-        cap.set(cv2.CAP_PROP_POS_FRAMES, sample_frame)
-        ret, frame = cap.read()
-        
-        if ret and frame is not None:
-            objects_count = self._estimate_objects_in_frame(frame)
-        
-        cap.release()
-        
-        # All videos start as normal - no pre-detection
         has_crash = False
         max_confidence = 0
+        
+        # Sample multiple frames for better detection
+        sample_frames = [frame_count // 4, frame_count // 2, 3 * frame_count // 4]
+        
+        for frame_pos in sample_frames:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_pos)
+            ret, frame = cap.read()
+            
+            if ret and frame is not None:
+                # Use Gemini to analyze this frame
+                gemini_result = self.analyze_frame_with_gemini(frame)
+                
+                if gemini_result.get('has_crash', False):
+                    has_crash = True
+                    max_confidence = max(max_confidence, gemini_result.get('confidence', 0))
+                    detections.append({
+                        'frame': frame_pos,
+                        'confidence': gemini_result.get('confidence', 0),
+                        'description': gemini_result.get('description', ''),
+                        'crash_type': gemini_result.get('crash_type', 'unknown')
+                    })
+                
+                # Count objects for display
+                objects_count = max(objects_count, self._estimate_objects_in_frame(frame))
+        
+        cap.release()
         
         return {
             'hasCrash': has_crash,

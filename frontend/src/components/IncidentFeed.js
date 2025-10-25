@@ -2,9 +2,9 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { AlertTriangle, Clock, MapPin, Eye, Download } from 'lucide-react';
+import { AlertTriangle, Clock, MapPin, Eye } from 'lucide-react';
 
-const IncidentFeed = ({ incidents }) => {
+const IncidentFeed = ({ incidents, onViewCamera }) => {
   const getSeverityColor = (severity) => {
     if (!severity) return 'secondary';
     switch (severity) {
@@ -40,29 +40,29 @@ const IncidentFeed = ({ incidents }) => {
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="bg-gray-800/80 border-gray-700/50 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle className="flex items-center">
+          <CardTitle className="flex items-center text-white">
             <AlertTriangle className="w-5 h-5 mr-2" />
             Incident History
           </CardTitle>
         </CardHeader>
         <CardContent>
           {incidents.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-              <p>No incidents detected yet</p>
-              <p className="text-sm">Start detection to monitor for traffic incidents</p>
+            <div className="text-center py-8 text-gray-400">
+              <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-gray-500" />
+              <p className="text-white">No incidents detected yet</p>
+              <p className="text-sm text-gray-400">Start detection to monitor for traffic incidents</p>
             </div>
           ) : (
             <div className="space-y-4">
               {incidents.map((incident) => (
-                <Card key={incident.id} className="hover:shadow-md transition-shadow">
+                <Card key={incident.id} className="hover:shadow-md transition-shadow bg-gray-700/50 border-gray-600/50 backdrop-blur-sm">
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center space-x-2 mb-2">
-                          <h3 className="font-semibold text-lg">{incident.type || 'Unknown Incident'}</h3>
+                          <h3 className="font-semibold text-lg text-white">{incident.type || 'Unknown Incident'}</h3>
                           <Badge variant={getSeverityColor(incident.severity)}>
                             {(incident.severity || 'unknown').toUpperCase()}
                           </Badge>
@@ -71,9 +71,9 @@ const IncidentFeed = ({ incidents }) => {
                           </Badge>
                         </div>
                         
-                        <p className="text-gray-600 mb-3">{incident.description}</p>
+                        <p className="text-gray-300 mb-3">{incident.description}</p>
                         
-                        <div className="flex items-center space-x-4 text-sm text-gray-500">
+                        <div className="flex items-center space-x-4 text-sm text-gray-400">
                           <div className="flex items-center">
                             <MapPin className="w-4 h-4 mr-1" />
                             {incident.location}
@@ -94,11 +94,13 @@ const IncidentFeed = ({ incidents }) => {
                           />
                         )}
                         <div className="flex space-x-1">
-                          <Button size="sm" variant="outline">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => onViewCamera?.(incident.videoId)}
+                            title="View Camera"
+                          >
                             <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button size="sm" variant="outline">
-                            <Download className="w-4 h-4" />
                           </Button>
                         </div>
                       </div>

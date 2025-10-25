@@ -190,63 +190,94 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
     loadVideos();
   }, []);
 
-  // Real-time detection with realistic CCTV behavior
+  // Real-time detection using actual video analysis
+  // Use ref to track videos without causing re-renders
+  const videosRef = useRef(videos);
+  videosRef.current = videos;
+
   useEffect(() => {
     if (!detectionActive) return;
 
-    let frameCounter = 0;
-    const interval = setInterval(() => {
-      frameCounter++;
-      
-      setVideos(prevVideos => {
-        return prevVideos.map(video => {
-          if (video.status !== 'online') return video;
+    const detectionIntervals = {};
 
-          // Only detect crashes for V videos (known crash videos) and very rarely
-          const isKnownCrashVideo = video.filename && video.filename.startsWith('V');
+    videosRef.current.forEach(video => {
+      if (video.status !== 'online' || !video.filename) return;
+
+      // Only detect crashes for V videos (known crash videos)
+      const isKnownCrashVideo = video.filename && video.filename.startsWith('V');
+      if (!isKnownCrashVideo) return;
+
+      // Start detection for this video
+      detectionIntervals[video.id] = setInterval(async () => {
+        try {
+          // Get current video time (simulate video playback)
+          const currentTime = (Date.now() / 1000) % 10; // 10 second loop
           
-          // Very low chance of detecting crash (only for known crash videos)
-          // Make it more realistic - crashes happen after some time
-          if (isKnownCrashVideo && frameCounter > 20 && Math.random() < 0.01) {
-            const incidentTypes = ['collision', 'breakdown', 'fire', 'debris'];
-            const incidentType = incidentTypes[Math.floor(Math.random() * incidentTypes.length)];
+          // Call backend for real-time detection
+          const response = await fetch(`http://localhost:5001/api/detect-crash/${video.filename}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ currentTime })
+          });
+
+          if (response.ok) {
+            const detection = await response.json();
             
-            const newIncident = {
-              id: Date.now() + Math.random(),
-              videoId: video.id,
-              type: incidentType,
-              severity: 'high',
-              location: video.location,
-              description: `Detected ${incidentType} on ${video.name}`,
-              timestamp: new Date(),
-              status: 'active'
-            };
+            // Always update bounding boxes for real-time display
+            setVideos(prevVideos => 
+              prevVideos.map(v => 
+                v.id === video.id 
+                  ? { ...v, boundingBoxes: detection.boxes || [] }
+                  : v
+              )
+            );
+            
+            if (detection.has_crash && !video.hasIncident) {
+              // Check if there's already an active incident for this camera
+              const existingIncident = incidents.find(incident => 
+                incident.videoId === video.id && incident.status === 'active'
+              );
+              
+              if (!existingIncident) {
+                // Create incident
+                const newIncident = {
+                  id: Date.now() + Math.random(),
+                  videoId: video.id,
+                  type: detection.crash_type || 'collision',
+                  severity: 'high',
+                  location: video.location,
+                  description: `AI detected ${detection.crash_type || 'collision'} on ${video.name} at ${currentTime.toFixed(1)}s (confidence: ${Math.round(detection.confidence * 100)}%)`,
+                  timestamp: new Date(),
+                  status: 'active',
+                  confidence: detection.confidence
+                };
 
-            setIncidents(prev => [newIncident, ...prev]);
-            onIncidentDetected?.(newIncident);
+                setIncidents(prev => [newIncident, ...prev]);
+                onIncidentDetected?.(newIncident);
 
-            return {
-              ...video,
-              hasIncident: true,
-              incidentType,
-              lastDetection: new Date()
-            };
+                // Update video state with incident
+                setVideos(prevVideos => 
+                  prevVideos.map(v => 
+                    v.id === video.id 
+                      ? { ...v, hasIncident: true, incidentType: detection.crash_type, confidence: detection.confidence }
+                      : v
+                  )
+                );
+              }
+            }
           }
+        } catch (error) {
+          console.error(`Detection error for ${video.filename}:`, error);
+        }
+      }, 500); // Check every 500ms for more responsive detection
+    });
 
-          // Update objects count with realistic movement
-          const baseCount = video.filename && video.filename.startsWith('V') ? 2 : 1;
-          const variation = Math.floor(Math.random() * 2);
-          const newCount = Math.max(1, baseCount + variation);
-
-          return {
-            ...video,
-            objectsCount: newCount
-          };
-        });
-      });
-    }, 2000); // More realistic timing
-
-    return () => clearInterval(interval);
+    // Cleanup function
+    return () => {
+      Object.values(detectionIntervals).forEach(interval => clearInterval(interval));
+    };
   }, [detectionActive, onIncidentDetected]);
 
   const startDetection = () => {
@@ -255,15 +286,41 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
 
   const stopDetection = () => {
     setDetectionActive(false);
+    // Reset all videos to normal state when stopping detection
+    setVideos(prevVideos => 
+      prevVideos.map(video => ({
+        ...video,
+        hasIncident: false,
+        incidentType: null,
+        lastDetection: null,
+        confidence: null,
+        boundingBoxes: []
+      }))
+    );
+    // Clear all incidents
+    setIncidents([]);
   };
 
   const dismissIncident = (incidentId) => {
+    // Find the incident to get the videoId
+    const incidentToDismiss = incidents.find(incident => incident.id === incidentId);
+    
     setIncidents(prev => prev.filter(incident => incident.id !== incidentId));
-    setVideos(prev => prev.map(video => ({
-      ...video,
-      hasIncident: false,
-      incidentType: null
-    })));
+    
+    // Only reset the specific video that had the incident
+    if (incidentToDismiss) {
+      setVideos(prev => prev.map(video => 
+        video.id === incidentToDismiss.videoId 
+          ? {
+              ...video,
+              hasIncident: false,
+              incidentType: null,
+              confidence: null,
+              boundingBoxes: []
+            }
+          : video
+      ));
+    }
   };
 
   const handleLocationClick = (video, e) => {
@@ -306,6 +363,12 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
           <Badge variant={detectionActive ? "destructive" : "secondary"} className="animate-pulse">
             {detectionActive ? 'DETECTING' : 'OFFLINE'}
           </Badge>
+          {detectionActive && (
+            <div className="flex items-center text-sm text-green-400">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></div>
+              AI Detection Active - Watching for incidents...
+            </div>
+          )}
         </div>
         <div className="flex space-x-2">
           <Button
@@ -415,6 +478,16 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
                   </div>
                 )}
 
+                {/* AI Analysis Indicator */}
+                {detectionActive && video.filename && video.filename.startsWith('V') && !video.hasIncident && (
+                  <div className="absolute top-2 right-2">
+                    <div className="bg-blue-500/80 text-white px-2 py-1 rounded text-xs flex items-center">
+                      <div className="w-2 h-2 bg-white rounded-full animate-pulse mr-1"></div>
+                      AI Analyzing...
+                    </div>
+                  </div>
+                )}
+
                 {/* Incident Overlay */}
                 {video.hasIncident && (
                   <div className="absolute inset-0 bg-red-500/20 flex items-center justify-center">
@@ -423,36 +496,32 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
                       <p className="text-red-400 font-bold text-lg">
                         {getIncidentLabel(video.incidentType)}
                       </p>
+                      <p className="text-red-300 text-sm mt-1">
+                        Confidence: {Math.round((video.confidence || 0.95) * 100)}%
+                      </p>
                     </div>
                   </div>
                 )}
 
-                {/* Moving Detection Boxes */}
-                {video.status === 'online' && video.objectsCount > 0 && (
+                {/* Real-time Detection Boxes */}
+                {video.status === 'online' && detectionActive && (
                   <div className="absolute inset-0 pointer-events-none">
-                    {Array.from({ length: video.objectsCount }).map((_, i) => {
-                      // Create moving bounding boxes that simulate car tracking
-                      const time = Date.now() / 1000;
-                      const baseX = 20 + i * 30;
-                      const baseY = 30 + i * 20;
-                      const moveX = Math.sin(time + i) * 10;
-                      const moveY = Math.cos(time + i * 0.5) * 5;
-                      
-                      return (
-                        <div
-                          key={i}
-                          className={`absolute border-2 transition-all duration-300 ${
-                            video.hasIncident ? 'border-red-500' : 'border-green-500'
-                          } ${video.hasIncident ? 'bg-red-500/20' : 'bg-green-500/20'}`}
-                          style={{
-                            left: `${Math.max(5, Math.min(85, baseX + moveX))}%`,
-                            top: `${Math.max(10, Math.min(80, baseY + moveY))}%`,
-                            width: '12%',
-                            height: '18%'
-                          }}
-                        />
-                      );
-                    })}
+                    {video.boundingBoxes && video.boundingBoxes.map((box, i) => (
+                      <div
+                        key={i}
+                        className={`absolute border-2 ${
+                          box.is_crash 
+                            ? 'border-red-500 bg-red-500/30 animate-pulse' 
+                            : 'border-green-400 bg-green-400/20'
+                        }`}
+                        style={{
+                          left: `${box.x1}px`,
+                          top: `${box.y1}px`,
+                          width: `${box.x2 - box.x1}px`,
+                          height: `${box.y2 - box.y1}px`,
+                        }}
+                      />
+                    ))}
                   </div>
                 )}
 

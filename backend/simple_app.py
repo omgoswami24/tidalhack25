@@ -13,10 +13,11 @@ import boto3
 import google.generativeai as genai
 from crash_detector import CrashDetector
 from load_videos import get_video_data
-from aws_sns_service import sns_service
+from twilio_voice_service import twilio_voice_service
+from real_crash_detector import real_crash_detector
 
 # Load environment variables
-load_dotenv()
+load_dotenv('safesight.env')
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -40,7 +41,7 @@ except Exception as e:
 # Configure Google Gemini
 try:
     genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-    gemini_model = genai.GenerativeModel('gemini-1.5-flash')
+    gemini_model = genai.GenerativeModel('gemini-1.5-pro')
     GEMINI_AVAILABLE = True
 except Exception as e:
     print(f"Gemini not available: {e}")
@@ -99,28 +100,36 @@ def health_check():
 
 @app.route('/api/security-alert', methods=['POST'])
 def send_security_alert():
-    """Send security alert via AWS SNS"""
+    """Send security alert via Twilio Voice Call"""
     try:
         data = request.get_json()
+        print(f"🚨 Security alert request received: {data}")
         
         # Validate required fields
         required_fields = ['type', 'location', 'severity', 'description']
         for field in required_fields:
             if field not in data:
+                print(f"❌ Missing required field: {field}")
                 return jsonify({
                     'success': False,
                     'error': f'Missing required field: {field}'
                 }), 400
         
-        # Send alert via SNS
-        result = sns_service.send_security_alert(data)
+        print(f"📞 Twilio Voice Service available: {twilio_voice_service.client is not None}")
+        print(f"📞 Target phone: {twilio_voice_service.target_phone}")
+        
+        # Make emergency call via Twilio
+        result = twilio_voice_service.make_emergency_call(data)
+        print(f"📞 Twilio Call Result: {result}")
         
         if result['success']:
             return jsonify({
                 'success': True,
-                'message': 'Security alert sent successfully',
-                'message_id': result['message_id'],
-                'phone_number': result['phone_number']
+                'message': 'Emergency call initiated successfully',
+                'call_sid': result['call_sid'],
+                'status': result['status'],
+                'to_number': result['to_number'],
+                'from_number': result['from_number']
             })
         else:
             return jsonify({
@@ -129,9 +138,10 @@ def send_security_alert():
             }), 500
             
     except Exception as e:
+        print(f"❌ Error in security alert endpoint: {e}")
         return jsonify({
             'success': False,
-            'error': f'Failed to send security alert: {str(e)}'
+            'error': f'Failed to initiate emergency call: {str(e)}'
         }), 500
 
 @app.route('/api/start-detection', methods=['POST'])
@@ -242,8 +252,32 @@ def upload_video():
         'video_url': 'mock://video/uploaded'
     })
 
+@app.route('/api/detect-crash/<video_name>', methods=['POST'])
+def detect_crash(video_name):
+    """Get real-time crash detection for a specific video and time"""
+    try:
+        data = request.get_json()
+        current_time = data.get('currentTime', 0)
+        
+        # Get detection data for this specific time
+        detection = real_crash_detector.get_detection_at_time(video_name, current_time)
+        
+        return jsonify(detection)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/video-analysis/<video_name>')
+def get_video_analysis(video_name):
+    """Get full crash analysis for a video"""
+    try:
+        # Get full crash analysis for the video
+        analysis = real_crash_detector.analyze_video_for_crashes(f"Videos/{video_name}", video_name)
+        return jsonify(analysis)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
-    print("🚀 SafeSight Backend Starting...")
+    print("🚀 Oculon Backend Starting...")
     print(f"✅ AWS Available: {AWS_AVAILABLE}")
     print(f"✅ Gemini Available: {GEMINI_AVAILABLE}")
     print("🌐 Backend running on http://localhost:5001")

@@ -13,7 +13,10 @@ class SNSService:
     def __init__(self):
         """Initialize AWS SNS service"""
         self.sns_client = None
-        self.phone_number = "+12817265923"  # Security phone number
+        self.phone_number = os.getenv('SECURITY_ALERT_PHONE', '2817265923')
+        # Ensure phone number has proper format
+        if not self.phone_number.startswith('+1'):
+            self.phone_number = f"+1{self.phone_number}"
         
         try:
             # Initialize SNS client
@@ -24,9 +27,20 @@ class SNSService:
                 aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
                 aws_session_token=os.getenv('AWS_SESSION_TOKEN')
             )
-            print("✅ AWS SNS Service initialized")
+            print(f"✅ AWS SNS Service initialized for phone: {self.phone_number}")
+            
+            # Test the connection
+            try:
+                self.sns_client.get_account_attributes()
+                print("✅ AWS SNS connection test successful")
+            except Exception as test_error:
+                print(f"⚠️  AWS SNS connection test failed: {test_error}")
+                
         except Exception as e:
             print(f"⚠️  AWS SNS not available: {e}")
+            print(f"   AWS_ACCESS_KEY_ID: {'Set' if os.getenv('AWS_ACCESS_KEY_ID') else 'Not set'}")
+            print(f"   AWS_SECRET_ACCESS_KEY: {'Set' if os.getenv('AWS_SECRET_ACCESS_KEY') else 'Not set'}")
+            print(f"   AWS_SESSION_TOKEN: {'Set' if os.getenv('AWS_SESSION_TOKEN') else 'Not set'}")
     
     def send_security_alert(self, incident_data: Dict) -> Dict:
         """
@@ -47,12 +61,19 @@ class SNSService:
         try:
             # Create alert message
             message = self._create_alert_message(incident_data)
+            print(f"📱 Attempting to send SMS to {self.phone_number}")
+            print(f"📝 Message: {message}")
             
-            # Send SMS (phone call simulation)
+            # Send SMS
             response = self.sns_client.publish(
                 PhoneNumber=self.phone_number,
                 Message=message,
-                Subject="SafeSight Security Alert"
+                MessageAttributes={
+                    'AWS.SNS.SMS.SMSType': {
+                        'DataType': 'String',
+                        'StringValue': 'Transactional'
+                    }
+                }
             )
             
             print(f"🚨 Security alert sent to {self.phone_number}")
@@ -66,6 +87,7 @@ class SNSService:
             
         except Exception as e:
             print(f"❌ Error sending security alert: {e}")
+            print(f"   Error type: {type(e).__name__}")
             return {
                 'success': False,
                 'error': str(e)
@@ -73,24 +95,7 @@ class SNSService:
     
     def _create_alert_message(self, incident_data: Dict) -> str:
         """Create formatted alert message"""
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        message = f"""
-🚨 SAFESIGHT SECURITY ALERT 🚨
-
-INCIDENT DETECTED: {incident_data.get('type', 'Unknown')}
-LOCATION: {incident_data.get('location', 'Unknown')}
-SEVERITY: {incident_data.get('severity', 'Unknown')}
-TIME: {timestamp}
-
-DESCRIPTION: {incident_data.get('description', 'No description available')}
-
-ACTION REQUIRED: Please investigate immediately.
-
-This is an automated alert from SafeSight Traffic Monitoring System.
-        """.strip()
-        
-        return message
+        return "🚨 ALERT: Suspicious activity detected! Please check immediately."
     
     def test_connection(self) -> bool:
         """Test SNS connection"""

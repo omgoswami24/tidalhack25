@@ -4,6 +4,7 @@ Load processed video data for the frontend
 
 import json
 import os
+import random
 
 def load_processed_videos():
     """Load processed video data from JSON file"""
@@ -16,7 +17,7 @@ def load_processed_videos():
         return []
 
 def get_video_data():
-    """Get video data for the frontend"""
+    """Get video data for the frontend with randomized positions"""
     videos = load_processed_videos()
     
     # Convert the data to the format expected by the frontend
@@ -38,6 +39,13 @@ def get_video_data():
             'processingResult': video.get('processingResult', {})
         }
         formatted_videos.append(formatted_video)
+    
+    # Randomize the order of videos each time
+    random.shuffle(formatted_videos)
+    
+    # Reassign IDs to maintain consistency with frontend expectations
+    for i, video in enumerate(formatted_videos):
+        video['id'] = i + 1
     
     return formatted_videos
 
