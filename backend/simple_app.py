@@ -12,6 +12,7 @@ from PIL import Image
 import boto3
 import google.generativeai as genai
 from crash_detector import CrashDetector
+from load_videos import get_video_data
 
 # Load environment variables
 load_dotenv()
@@ -46,6 +47,9 @@ except Exception as e:
 
 # Initialize crash detector
 crash_detector = CrashDetector()
+
+# Load real video data
+real_videos = get_video_data()
 
 # Global variables for detection state
 detection_active = False
@@ -169,6 +173,19 @@ def get_incidents():
         'incidents': mock_incidents,
         'count': len(mock_incidents)
     })
+
+@app.route('/api/videos', methods=['GET'])
+def get_videos():
+    """Get all video feeds with real data"""
+    return jsonify(real_videos)
+
+@app.route('/api/videos/<int:video_id>', methods=['GET'])
+def get_video_details(video_id):
+    """Get details for a specific video"""
+    video = next((v for v in real_videos if v['id'] == video_id), None)
+    if video:
+        return jsonify(video)
+    return jsonify({'error': 'Video not found'}), 404
 
 @app.route('/api/stats', methods=['GET'])
 def get_stats():

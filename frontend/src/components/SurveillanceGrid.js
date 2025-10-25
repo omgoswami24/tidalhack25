@@ -155,13 +155,39 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
   ];
 
   useEffect(() => {
-    setVideos(mockVideoFeeds);
-    setStats({
-      totalCameras: mockVideoFeeds.length,
-      onlineCameras: mockVideoFeeds.filter(v => v.status === 'online').length,
-      totalIncidents: 0,
-      activeIncidents: 0
-    });
+    // Load real video data from API
+    const loadVideos = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/videos');
+        const realVideos = await response.json();
+        
+        // Convert API data to component format
+        const formattedVideos = realVideos.map(video => ({
+          ...video,
+          lastDetection: video.lastDetection ? new Date(video.lastDetection) : null
+        }));
+        
+        setVideos(formattedVideos);
+        setStats({
+          totalCameras: formattedVideos.length,
+          onlineCameras: formattedVideos.filter(v => v.status === 'online').length,
+          totalIncidents: formattedVideos.filter(v => v.hasIncident).length,
+          activeIncidents: formattedVideos.filter(v => v.hasIncident).length
+        });
+      } catch (error) {
+        console.error('Failed to load videos:', error);
+        // Fallback to mock data
+        setVideos(mockVideoFeeds);
+        setStats({
+          totalCameras: mockVideoFeeds.length,
+          onlineCameras: mockVideoFeeds.filter(v => v.status === 'online').length,
+          totalIncidents: 0,
+          activeIncidents: 0
+        });
+      }
+    };
+    
+    loadVideos();
   }, []);
 
   // Simulate real-time detection

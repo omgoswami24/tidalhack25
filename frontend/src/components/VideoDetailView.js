@@ -221,20 +221,34 @@ const VideoDetailView = ({ video, onClose }) => {
               </CardHeader>
               <CardContent className="h-full p-0">
                 <div className="relative bg-black rounded-lg h-full overflow-hidden">
-                  {/* Video Player Placeholder */}
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
-                    <div className="text-center">
-                      <div className="w-24 h-24 bg-gray-700/80 rounded-full flex items-center justify-center mb-6 mx-auto backdrop-blur-sm">
-                        {isPlaying ? (
-                          <Pause className="w-12 h-12 text-white" />
-                        ) : (
-                          <Play className="w-12 h-12 text-white" />
-                        )}
+                  {/* Video Player */}
+                  {video.filename ? (
+                    <video
+                      ref={videoRef}
+                      className="w-full h-full object-cover"
+                      controls
+                      onPlay={() => setIsPlaying(true)}
+                      onPause={() => setIsPlaying(false)}
+                      onTimeUpdate={(e) => setCurrentTime(e.target.currentTime)}
+                    >
+                      <source src={`/Videos/${video.filename}`} type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
+                      <div className="text-center">
+                        <div className="w-24 h-24 bg-gray-700/80 rounded-full flex items-center justify-center mb-6 mx-auto backdrop-blur-sm">
+                          {isPlaying ? (
+                            <Pause className="w-12 h-12 text-white" />
+                          ) : (
+                            <Play className="w-12 h-12 text-white" />
+                          )}
+                        </div>
+                        <p className="text-gray-200 mb-3 font-medium text-lg">Camera Feed: {video.name}</p>
+                        <p className="text-sm text-gray-300">Objects Detected: {video.objectsCount}</p>
                       </div>
-                      <p className="text-gray-200 mb-3 font-medium text-lg">Camera Feed: {video.name}</p>
-                      <p className="text-sm text-gray-300">Objects Detected: {video.objectsCount}</p>
                     </div>
-                  </div>
+                  )}
 
                   {/* Detection Overlays */}
                   {detections.map((detection, index) => (
