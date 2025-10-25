@@ -34,8 +34,10 @@ const Dashboard = () => {
     }));
     
     toast({
-      title: "Traffic Incident Detected",
-      description: `${incident.type} detected on ${incident.location}`,
+      title: "🚨 Traffic Incident Detected",
+      description: `${incident.type} detected on ${incident.location}. Emergency services have been notified.`,
+      duration: 6000,
+      className: "bg-red-600/90 text-white border-red-500 backdrop-blur-sm",
     });
   };
 

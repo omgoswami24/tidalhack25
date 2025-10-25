@@ -3,14 +3,82 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Alert, AlertDescription } from './ui/alert';
-import { X, Play, Pause, Square, AlertTriangle, MapPin, Clock, Activity, Users, Zap } from 'lucide-react';
+import { X, Play, Pause, Square, AlertTriangle, MapPin, Clock, Activity, Users, Zap, ExternalLink } from 'lucide-react';
+import { getEmbedMapUrl, getStaticMapUrl } from '../config/maps';
 
 const VideoDetailView = ({ video, onClose }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [detections, setDetections] = useState([]);
   const [incidentDetails, setIncidentDetails] = useState(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
   const videoRef = useRef(null);
+
+  // Camera location data with coordinates
+  const cameraLocations = {
+    'Highway 101 - Northbound': {
+      lat: 37.7749,
+      lng: -122.4194,
+      address: 'Highway 101, Mile 45.2, San Francisco, CA'
+    },
+    'I-280 - Southbound': {
+      lat: 37.3382,
+      lng: -121.8863,
+      address: 'I-280, Exit 12, San Jose, CA'
+    },
+    'Highway 880 - Eastbound': {
+      lat: 37.8044,
+      lng: -122.2712,
+      address: 'Highway 880, Oakland, CA'
+    },
+    'Highway 5 - Northbound': {
+      lat: 38.5816,
+      lng: -121.4944,
+      address: 'Highway 5, Sacramento, CA'
+    },
+    'Highway 101 - Southbound': {
+      lat: 37.4419,
+      lng: -122.1430,
+      address: 'Highway 101, Palo Alto, CA'
+    },
+    'I-80 - Westbound': {
+      lat: 37.8715,
+      lng: -122.2730,
+      address: 'I-80, Berkeley, CA'
+    },
+    'Highway 17 - Northbound': {
+      lat: 36.9741,
+      lng: -122.0308,
+      address: 'Highway 17, Santa Cruz, CA'
+    },
+    'I-580 - Eastbound': {
+      lat: 37.6819,
+      lng: -121.7680,
+      address: 'I-580, Livermore, CA'
+    },
+    'Highway 92 - Westbound': {
+      lat: 37.4636,
+      lng: -122.4285,
+      address: 'Highway 92, Half Moon Bay, CA'
+    }
+  };
+
+  // Get location data for current video
+  const location = cameraLocations[video.name] || {
+    lat: 37.7749,
+    lng: -122.4194,
+    address: video.location
+  };
+
+  // Generate Google Maps URLs
+  const mapEmbedUrl = getEmbedMapUrl(location.lat, location.lng);
+  const staticMapUrl = getStaticMapUrl(location.lat, location.lng);
+  const searchUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.address)}`;
+  const navigationUrl = `https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}`;
+
+  const handleMapClick = () => {
+    window.open(searchUrl, '_blank');
+  };
 
   // Mock detection data for the selected video
   useEffect(() => {
@@ -115,55 +183,56 @@ const VideoDetailView = ({ video, onClose }) => {
   if (!video) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
-      <div className="bg-gray-900 rounded-lg w-full max-w-7xl h-full max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-gray-900/40 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-gray-900/95 backdrop-blur-sm rounded-2xl w-full max-w-7xl h-full max-h-[95vh] overflow-hidden shadow-2xl border border-gray-700/50">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b border-gray-700/50">
           <div>
             <h2 className="text-2xl font-bold text-white">Hello SafeSight, here are the details of your detection.</h2>
-            <p className="text-gray-400 mt-1">{video.name} - {video.location}</p>
+            <p className="text-gray-200 mt-1 font-medium">{video.name} - {video.location}</p>
           </div>
-          <Button onClick={onClose} variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+          <Button onClick={onClose} variant="ghost" size="sm" className="text-gray-400 hover:text-white hover:bg-gray-800/50 rounded-full">
             <X className="w-6 h-6" />
           </Button>
         </div>
 
-        <div className="flex h-full">
-          {/* Left Side - Video Player */}
-          <div className="flex-1 p-6">
-            <Card className="bg-gray-800 border-gray-700 h-full">
+        {/* Main Content Grid - 2x2 Layout */}
+        <div className="grid grid-cols-2 grid-rows-2 h-[calc(100vh-120px)] gap-6 p-6">
+          {/* Live Camera Feed - Top Left (50% width, 50% height) */}
+          <div className="col-span-1 row-span-1">
+            <Card className="bg-gray-800/80 border-gray-700/50 h-full backdrop-blur-sm">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-white flex items-center">
-                    <Activity className="w-5 h-5 mr-2" />
-                    Live Detection Feed
+                  <CardTitle className="text-white text-xl flex items-center">
+                    <Activity className="w-6 h-6 mr-3" />
+                    Live Camera Feed
                   </CardTitle>
                   <div className="flex items-center space-x-2">
-                    <Badge variant={video.status === 'online' ? 'default' : 'secondary'}>
-                      {video.status === 'online' ? 'LIVE' : 'OFFLINE'}
+                    <Badge variant={video.status === 'online' ? 'default' : 'secondary'} className="bg-green-600 text-white">
+                      {video.status === 'online' ? 'Real-time' : 'OFFLINE'}
                     </Badge>
                     {video.hasIncident && (
-                      <Badge variant="destructive" className="animate-pulse">
+                      <Badge variant="destructive" className="animate-pulse bg-red-600">
                         INCIDENT DETECTED
                       </Badge>
                     )}
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="h-full">
-                <div className="relative bg-black rounded-lg h-96 mb-4 overflow-hidden">
+              <CardContent className="h-full p-0">
+                <div className="relative bg-black rounded-lg h-full overflow-hidden">
                   {/* Video Player Placeholder */}
                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
                     <div className="text-center">
-                      <div className="w-20 h-20 bg-gray-700 rounded-full flex items-center justify-center mb-4 mx-auto">
+                      <div className="w-24 h-24 bg-gray-700/80 rounded-full flex items-center justify-center mb-6 mx-auto backdrop-blur-sm">
                         {isPlaying ? (
-                          <Pause className="w-10 h-10 text-white" />
+                          <Pause className="w-12 h-12 text-white" />
                         ) : (
-                          <Play className="w-10 h-10 text-white" />
+                          <Play className="w-12 h-12 text-white" />
                         )}
                       </div>
-                      <p className="text-gray-400 mb-2">Video Feed: {video.name}</p>
-                      <p className="text-sm text-gray-500">Objects Detected: {video.objectsCount}</p>
+                      <p className="text-gray-200 mb-3 font-medium text-lg">Camera Feed: {video.name}</p>
+                      <p className="text-sm text-gray-300">Objects Detected: {video.objectsCount}</p>
                     </div>
                   </div>
 
@@ -171,7 +240,7 @@ const VideoDetailView = ({ video, onClose }) => {
                   {detections.map((detection, index) => (
                     <div
                       key={detection.id}
-                      className="absolute border-2 border-red-500 bg-red-500/20 pointer-events-none"
+                      className="absolute border-2 border-red-500 bg-red-500/20 pointer-events-none rounded"
                       style={{
                         left: `${detection.location.x}%`,
                         top: `${detection.location.y}%`,
@@ -179,7 +248,7 @@ const VideoDetailView = ({ video, onClose }) => {
                         height: `${detection.location.height}%`
                       }}
                     >
-                      <div className="absolute -top-6 left-0 text-xs text-red-400 font-semibold">
+                      <div className="absolute -top-8 left-0 text-xs text-red-400 font-semibold bg-black/70 px-2 py-1 rounded">
                         {detection.type} ({Math.round(detection.confidence * 100)}%)
                       </div>
                     </div>
@@ -191,143 +260,144 @@ const VideoDetailView = ({ video, onClose }) => {
                       onClick={togglePlayPause}
                       size="sm"
                       variant="secondary"
-                      className="bg-black/50 hover:bg-black/70"
+                      className="bg-black/70 hover:bg-black/90 backdrop-blur-sm"
                     >
                       {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                     </Button>
-                    <div className="flex-1 bg-gray-600 rounded-full h-2">
+                    <div className="flex-1 bg-gray-600/70 rounded-full h-2 backdrop-blur-sm">
                       <div className="bg-red-500 h-2 rounded-full" style={{ width: '30%' }}></div>
                     </div>
-                    <span className="text-white text-sm">{formatTime(currentTime)}</span>
-                  </div>
-                </div>
-
-                {/* Detection Summary */}
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div className="text-center">
-                    <div className="font-semibold text-green-400">{detections.length}</div>
-                    <div className="text-gray-500">Total Detections</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="font-semibold text-red-400">
-                      {detections.filter(d => d.type === 'Vehicle').length}
-                    </div>
-                    <div className="text-gray-500">Vehicles</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="font-semibold text-yellow-400">
-                      {Math.round(detections.reduce((acc, d) => acc + d.confidence, 0) / detections.length * 100) || 0}%
-                    </div>
-                    <div className="text-gray-500">Avg Confidence</div>
+                    <span className="text-white text-sm bg-black/50 px-2 py-1 rounded">{formatTime(currentTime)}</span>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Right Side - Incident Details */}
-          <div className="w-96 p-6 border-l border-gray-700">
-            <div className="space-y-6">
-              {/* Key Information */}
-              <Card className="bg-gray-800 border-gray-700">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-white text-lg">Key Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Sentiment:</span>
-                    <span className="text-blue-400">Neutral</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Threat Level:</span>
-                    <span className={getThreatColor(incidentDetails?.threatLevel || 'Medium')}>
-                      {incidentDetails?.threatLevel || 'Medium'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Event Details:</span>
-                    <span className="text-white text-sm">
-                      {incidentDetails?.description || 'Traffic monitoring in progress'}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Location */}
-              <Card className="bg-gray-800 border-gray-700">
-                <CardHeader className="pb-3">
+          {/* Camera Location - Top Right (50% width, 50% height) */}
+          <div className="col-span-1 row-span-1">
+            <Card className="bg-gray-800/80 border-gray-700/50 h-full backdrop-blur-sm">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
                   <CardTitle className="text-white text-lg flex items-center">
                     <MapPin className="w-5 h-5 mr-2" />
-                    Location
+                    Camera Location
                   </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="bg-gray-700 rounded-lg p-4 h-32 flex items-center justify-center">
-                    <div className="text-center">
-                      <MapPin className="w-8 h-8 text-red-500 mx-auto mb-2" />
-                      <p className="text-white text-sm">{video.location}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Recent Detections */}
-              <Card className="bg-gray-800 border-gray-700">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-white text-lg">Recent Detections</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 max-h-64 overflow-y-auto">
-                  {detections.slice(0, 5).map((detection) => (
-                    <div key={detection.id} className="flex items-start space-x-3 p-2 bg-gray-700 rounded">
-                      <div className="w-2 h-2 bg-red-500 rounded-full mt-2"></div>
-                      <div className="flex-1">
-                        <div className="text-white text-sm font-medium">{detection.type}</div>
-                        <div className="text-gray-400 text-xs">{detection.description}</div>
-                        <div className="text-gray-500 text-xs flex items-center mt-1">
-                          <Clock className="w-3 h-3 mr-1" />
-                          {detection.timestamp.toLocaleTimeString()}
-                        </div>
+                  <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                </div>
+              </CardHeader>
+              <CardContent className="h-full p-0">
+                <div className="relative bg-gray-700 rounded-lg h-full overflow-hidden cursor-pointer" onClick={handleMapClick}>
+                  {/* Google Maps Embed or Static Image */}
+                  {mapEmbedUrl.includes('embed') ? (
+                    <iframe
+                      src={mapEmbedUrl}
+                      width="100%"
+                      height="100%"
+                      style={{ border: 0 }}
+                      allowFullScreen=""
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      onLoad={() => setMapLoaded(true)}
+                      onError={() => setMapLoaded(true)}
+                      title={`Map of ${video.name}`}
+                    />
+                  ) : (
+                    <img
+                      src={staticMapUrl}
+                      alt={`Map of ${video.name}`}
+                      className="w-full h-full object-cover"
+                      onLoad={() => setMapLoaded(true)}
+                      onError={() => setMapLoaded(true)}
+                    />
+                  )}
+                  
+                  {/* Loading overlay */}
+                  {!mapLoaded && (
+                    <div className="absolute inset-0 bg-gray-700 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                        <p className="text-gray-300 text-sm">Loading map...</p>
                       </div>
                     </div>
-                  ))}
-                </CardContent>
-              </Card>
+                  )}
 
-              {/* Additional Information */}
-              {incidentDetails && (
-                <Card className="bg-gray-800 border-gray-700">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-white text-lg">Additional Information</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ul className="space-y-2 text-sm text-gray-300">
-                      {incidentDetails.additionalInfo.map((info, index) => (
-                        <li key={index} className="flex items-start">
-                          <span className="w-2 h-2 bg-yellow-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                          {info}
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
+                  {/* Click overlay */}
+                  <div className="absolute inset-0 bg-transparent cursor-pointer" onClick={handleMapClick}>
+                    <div className="absolute top-3 left-3 bg-black/80 text-white px-3 py-2 rounded-lg text-sm backdrop-blur-sm">
+                      Click to open in Google Maps
+                    </div>
+                    <div className="absolute bottom-3 right-3 bg-red-600/90 text-white px-3 py-2 rounded-lg text-sm backdrop-blur-sm">
+                      📍 {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-              {/* Action Buttons */}
-              <div className="flex space-x-2">
-                <Button 
-                  variant="outline" 
-                  className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-700"
-                >
-                  Dismiss
-                </Button>
-                <Button 
-                  variant="destructive" 
-                  className="flex-1 bg-red-600 hover:bg-red-700"
-                >
-                  Alert Emergency Services
-                </Button>
-              </div>
-            </div>
+          {/* Key Information - Bottom Left (50% width, 50% height) */}
+          <div className="col-span-1 row-span-1">
+            <Card className="bg-gray-800/80 border-gray-700/50 h-full backdrop-blur-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-white text-lg">Key Information</CardTitle>
+              </CardHeader>
+              <CardContent className="p-4">
+                <div className="grid grid-cols-3 gap-6 h-full">
+                  {/* Sentiment Card */}
+                  <div className="bg-blue-600/20 border border-blue-500/30 rounded-lg p-4 flex flex-col items-center justify-center backdrop-blur-sm">
+                    <div className="text-blue-400 font-bold text-lg mb-2">Neutral</div>
+                    <div className="text-gray-300 text-sm text-center">Sentiment</div>
+                  </div>
+                  
+                  {/* Threat Level Card */}
+                  <div className={`${getThreatColor(incidentDetails?.threatLevel || 'Medium').replace('text-', 'bg-').replace('-500', '-600/20')} border border-red-500/30 rounded-lg p-4 flex flex-col items-center justify-center backdrop-blur-sm`}>
+                    <div className={`${getThreatColor(incidentDetails?.threatLevel || 'Medium')} font-bold text-lg mb-2`}>
+                      {incidentDetails?.threatLevel || 'Medium'}
+                    </div>
+                    <div className="text-gray-300 text-sm text-center">Threat Level</div>
+                  </div>
+                  
+                  {/* Event Details Card */}
+                  <div className="bg-gray-700/60 border border-gray-600/30 rounded-lg p-4 backdrop-blur-sm">
+                    <div className="text-gray-300 text-xs mb-2">Event Details</div>
+                    <div className="text-white text-sm leading-relaxed">
+                      {incidentDetails?.description || 'Traffic monitoring in progress'}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Additional Information - Bottom Right (50% width, 50% height) */}
+          <div className="col-span-1 row-span-1">
+            <Card className="bg-gray-800/80 border-gray-700/50 h-full backdrop-blur-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-white text-lg">Additional Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 h-full overflow-y-auto p-4">
+                {incidentDetails ? (
+                  incidentDetails.additionalInfo.map((info, index) => (
+                    <div key={index} className="bg-gray-700/60 rounded-lg p-4 backdrop-blur-sm">
+                      <p className="text-white text-sm leading-relaxed">{info}</p>
+                    </div>
+                  ))
+                ) : (
+                  <>
+                    <div className="bg-gray-700/60 rounded-lg p-4 backdrop-blur-sm">
+                      <p className="text-white text-sm leading-relaxed">Traffic monitoring in progress with AI-powered object detection.</p>
+                    </div>
+                    <div className="bg-gray-700/60 rounded-lg p-4 backdrop-blur-sm">
+                      <p className="text-white text-sm leading-relaxed">System is actively analyzing video feed for potential incidents.</p>
+                    </div>
+                    <div className="bg-gray-700/60 rounded-lg p-4 backdrop-blur-sm">
+                      <p className="text-white text-sm leading-relaxed">Emergency services can be dispatched within 2-3 minutes if needed.</p>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>

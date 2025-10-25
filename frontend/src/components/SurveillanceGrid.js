@@ -2,12 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { AlertTriangle, Wifi, WifiOff, Play, Pause, Square, Eye, AlertCircle } from 'lucide-react';
+import { AlertTriangle, Wifi, WifiOff, Play, Pause, Square, Eye, AlertCircle, MapPin } from 'lucide-react';
+import CameraLocationMap from './CameraLocationMap';
 
 const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
   const [videos, setVideos] = useState([]);
   const [detectionActive, setDetectionActive] = useState(false);
   const [incidents, setIncidents] = useState([]);
+  const [selectedCamera, setSelectedCamera] = useState(null);
+  const [showLocationMap, setShowLocationMap] = useState(false);
   const [stats, setStats] = useState({
     totalCameras: 0,
     onlineCameras: 0,
@@ -21,6 +24,7 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
       id: 1,
       name: 'Highway 101 - Northbound',
       location: 'Highway 101, Mile 45.2, San Francisco, CA',
+      coordinates: { lat: 37.7749, lng: -122.4194 },
       status: 'online',
       hasIncident: true,
       incidentType: 'collision',
@@ -38,6 +42,7 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
       id: 2,
       name: 'I-280 - Southbound',
       location: 'I-280, Exit 12, San Jose, CA',
+      coordinates: { lat: 37.3382, lng: -121.8863 },
       status: 'online',
       hasIncident: false,
       incidentType: null,
@@ -49,6 +54,7 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
       id: 3,
       name: 'Highway 880 - Eastbound',
       location: 'Highway 880, Oakland, CA',
+      coordinates: { lat: 37.8044, lng: -122.2712 },
       status: 'online',
       hasIncident: true,
       incidentType: 'fire',
@@ -66,6 +72,7 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
       id: 4,
       name: 'Highway 5 - Northbound',
       location: 'Highway 5, Sacramento, CA',
+      coordinates: { lat: 38.5816, lng: -121.4944 },
       status: 'online',
       hasIncident: false,
       incidentType: null,
@@ -77,6 +84,7 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
       id: 5,
       name: 'Highway 101 - Southbound',
       location: 'Highway 101, Palo Alto, CA',
+      coordinates: { lat: 37.4419, lng: -122.1430 },
       status: 'offline',
       hasIncident: false,
       incidentType: null,
@@ -88,6 +96,7 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
       id: 6,
       name: 'I-80 - Westbound',
       location: 'I-80, Berkeley, CA',
+      coordinates: { lat: 37.8715, lng: -122.2730 },
       status: 'online',
       hasIncident: true,
       incidentType: 'breakdown',
@@ -100,6 +109,48 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
         injuries: 'No injuries reported',
         description: 'Vehicle breakdown with debris on roadway causing traffic backup'
       }
+    },
+    {
+      id: 7,
+      name: 'Highway 17 - Northbound',
+      location: 'Highway 17, Santa Cruz, CA',
+      coordinates: { lat: 36.9741, lng: -122.0308 },
+      status: 'online',
+      hasIncident: false,
+      incidentType: null,
+      objectsCount: 1,
+      lastDetection: null,
+      crashDetails: null
+    },
+    {
+      id: 8,
+      name: 'I-580 - Eastbound',
+      location: 'I-580, Livermore, CA',
+      coordinates: { lat: 37.6819, lng: -121.7680 },
+      status: 'online',
+      hasIncident: true,
+      incidentType: 'fire',
+      objectsCount: 3,
+      lastDetection: new Date(Date.now() - 3 * 60 * 1000), // 3 minutes ago
+      crashDetails: {
+        type: 'Vehicle fire with smoke',
+        severity: 'High',
+        vehiclesInvolved: 1,
+        injuries: 'Driver evacuated safely',
+        description: 'Vehicle fire with visible flames and heavy smoke'
+      }
+    },
+    {
+      id: 9,
+      name: 'Highway 92 - Westbound',
+      location: 'Highway 92, Half Moon Bay, CA',
+      coordinates: { lat: 37.4636, lng: -122.4285 },
+      status: 'offline',
+      hasIncident: false,
+      incidentType: null,
+      objectsCount: 0,
+      lastDetection: null,
+      crashDetails: null
     }
   ];
 
@@ -176,6 +227,17 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
     })));
   };
 
+  const handleLocationClick = (video, e) => {
+    e.stopPropagation(); // Prevent triggering the video click
+    setSelectedCamera(video);
+    setShowLocationMap(true);
+  };
+
+  const closeLocationMap = () => {
+    setShowLocationMap(false);
+    setSelectedCamera(null);
+  };
+
   const getIncidentColor = (incidentType) => {
     switch (incidentType) {
       case 'collision': return 'bg-red-500';
@@ -236,15 +298,15 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
         <span>Total Detections: {incidents.length}</span>
       </div>
 
-      {/* Video Grid */}
+      {/* Video Grid - 3x3 Layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {videos.map((video) => (
           <Card 
             key={video.id} 
-            className={`relative overflow-hidden transition-all duration-300 cursor-pointer hover:scale-105 ${
+            className={`relative overflow-hidden transition-all duration-300 cursor-pointer hover:scale-105 hover:shadow-xl backdrop-blur-sm ${
               video.hasIncident 
-                ? 'ring-4 ring-red-500 animate-pulse bg-red-900/20' 
-                : 'bg-gray-800 border-gray-700 hover:border-gray-600'
+                ? 'ring-4 ring-red-500/50 animate-pulse bg-red-900/20 border-red-500/50' 
+                : 'bg-gray-800/80 border-gray-700/50 hover:border-gray-600 hover:bg-gray-800'
             }`}
             onClick={() => onVideoClick?.(video)}
           >
@@ -264,7 +326,21 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
                       {getIncidentLabel(video.incidentType)}
                     </Badge>
                   )}
-                  <Button size="sm" variant="ghost" className="text-gray-400">
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                    onClick={(e) => handleLocationClick(video, e)}
+                    title="View location on map"
+                  >
+                    <MapPin className="w-4 h-4" />
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 transition-colors"
+                    title="View details"
+                  >
                     <Eye className="w-4 h-4" />
                   </Button>
                 </div>
@@ -343,38 +419,56 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
 
       {/* Recent Incidents Sidebar */}
       {incidents.length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-lg font-semibold text-white mb-4">Recent Incidents</h3>
-          <div className="space-y-3">
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold text-white">Recent Incidents</h3>
+            <Badge variant="destructive" className="animate-pulse">
+              {incidents.length} Active
+            </Badge>
+          </div>
+          <div className="space-y-4">
             {incidents.slice(0, 5).map((incident) => (
-              <Card key={incident.id} className="bg-gray-800 border-gray-700">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <Badge variant="destructive" className="animate-pulse">
+              <Card key={incident.id} className="bg-gray-800/90 border-gray-700/50 backdrop-blur-sm hover:bg-gray-800 transition-all duration-200 shadow-lg">
+                <CardContent className="p-5">
+                  <div className="space-y-4">
+                    {/* Header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <Badge variant="destructive" className="animate-pulse bg-red-600 text-white font-semibold">
                           {incident.type?.toUpperCase() || 'INCIDENT'}
                         </Badge>
-                        <span className="text-gray-400 text-sm">
+                        <span className="text-gray-300 text-sm font-medium">
                           {incident.timestamp.toLocaleTimeString()}
                         </span>
                       </div>
-                      <p className="text-white text-sm mb-1">{incident.description}</p>
-                      <p className="text-gray-400 text-xs">{incident.location}</p>
+                      <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
                     </div>
-                    <div className="flex space-x-2">
+                    
+                    {/* Description */}
+                    <div className="space-y-2">
+                      <p className="text-white text-sm leading-relaxed font-medium">
+                        {incident.description}
+                      </p>
+                      <p className="text-gray-400 text-xs flex items-center">
+                        <MapPin className="w-3 h-3 mr-1" />
+                        {incident.location}
+                      </p>
+                    </div>
+                    
+                    {/* Action Buttons */}
+                    <div className="flex space-x-3 pt-2">
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => dismissIncident(incident.id)}
-                        className="text-gray-400 border-gray-600"
+                        className="flex-1 text-gray-300 border-gray-600 hover:bg-gray-700 hover:text-white transition-colors"
                       >
                         Dismiss
                       </Button>
                       <Button
                         size="sm"
                         variant="destructive"
-                        className="bg-red-600 hover:bg-red-700"
+                        className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium transition-colors"
                       >
                         Alert Security
                       </Button>
@@ -385,6 +479,14 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Location Map Modal */}
+      {showLocationMap && selectedCamera && (
+        <CameraLocationMap 
+          camera={selectedCamera} 
+          onClose={closeLocationMap} 
+        />
       )}
     </div>
   );
