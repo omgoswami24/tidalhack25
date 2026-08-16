@@ -33,14 +33,14 @@ The windows were derived from the footage rather than guessed:
 | Clip | Window | Basis |
 |------|--------|-------|
 | `V1.mp4` — box truck strikes a low-clearance bridge | 6.85s – 8.50s | Real impact. The truck was tracked against a median-background model: it reaches the underpass around 5.3s, decelerates hard through 6.1s, and is fully stationary from 6.9s (centroid drift under 10 px/s after). |
-| `V3.mp4` — night intersection | 7.30s – 8.30s | **Staged.** The clip contains no collision. The vehicle marked by the source's burned-in annotation crosses at a constant 60–100 px/s and never contacts anything. |
-| `V5.mp4` — snowy freeway | 24.0s – 29.0s | **Staged.** Ordinary traffic end to end, verified by frame-difference analysis. |
+| `V3.mp4` — vehicle strikes a pedestrian at a night intersection | 9.25s – 12.00s | Real impact, timed frame by frame. The pedestrian is upright in the crosswalk at 9.20s and has been struck by 9.30s. The window runs to the end of the clip, through the aftermath. |
+| `V5.mp4` — snowy freeway | 24.0s – 29.0s | **Staged.** Ordinary traffic end to end, with no collision, verified by frame-difference analysis. Kept as a scripted demo cue and labelled as such in the source. |
 
-Two of the three clips are scripted demo cues, and they are labelled as such in the source.
-Only `V1` is a genuine detection.
+Two of the three windows mark real collisions. `V5` does not and is flagged in the code.
 
-`yolov8n.pt` and a `CrashDetector` class are present in the repository from earlier work but
-are **not** wired into the serving path.
+The `V3` source shipped with a red annotation ring burned over the footage. It has been
+removed by keying the overlay's colour and inpainting those pixels per frame, so the clip
+plays as plain CCTV.
 
 ## Stack
 
@@ -133,7 +133,7 @@ vercel.json                         Build and routing config
 
 - Detection runs against fixed windows on three recorded clips. Live feeds are displayed
   and monitored but never analysed — nothing infers on them.
-- Two of the three clips have no real collision; their triggers are staged for demo.
+- One of the three clips (`V5`) has no real collision; its trigger is a staged demo cue.
 - Public DOT cameras go offline or return no-signal frames without warning. Feeds are
   checked when added, not at runtime, so a dead camera shows as a black tile.
 - Twilio trial accounts can only dial verified numbers.

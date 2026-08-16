@@ -18,18 +18,19 @@ CRASH_DATA = {
         'severity': 'Low',     # property damage, low speed, driver walks away
         'confidence': 0.91,
     },
-    'V3.mp4': {   # night intersection footage (LAPD CCTV, LA)
-        # STAGED TRIGGER - NOT A REAL EVENT. This clip contains no collision.
-        # The vehicle marked by the source's burned-in red circle enters at 4.2s
-        # and crosses at a near-constant 60-100 px/s until the circle drops at
-        # 8.26s; nothing decelerates, contacts, or stops. Verified by tracking the
-        # annotation centroid and by frame-by-frame review through 11.9s.
-        # The window below is a scripted demo cue placed while the circled vehicle
-        # is still marked, so the highlight lines up. Present this feed as simulated.
-        'crash_time': 7.30,
-        'crash_duration': 1.00,
+    'V3.mp4': {   # night intersection, vehicle strikes a pedestrian (LAPD CCTV, LA)
+        # REAL IMPACT, measured frame by frame. The SUV crosses left to right while
+        # a pedestrian stands in the crosswalk: the pedestrian is still upright at
+        # 9.20s and has been struck by 9.30s, so contact falls at ~9.25s. The
+        # window runs to the end of the 12.01s clip, through the aftermath.
+        #
+        # An earlier revision had this at 7.30s and marked it staged. That was
+        # wrong: the search was for vehicle-to-vehicle contact, and the pedestrian
+        # is only a few pixels tall in this frame at night.
+        'crash_time': 9.25,
+        'crash_duration': 2.75,
         'type': 'collision',
-        'severity': 'High',
+        'severity': 'High',    # vehicle versus pedestrian
         'confidence': 0.88,
     },
     'V5.mp4': {   # snowy freeway traffic (WisDOT camera, US 41/45 @ Lannon Rd)
