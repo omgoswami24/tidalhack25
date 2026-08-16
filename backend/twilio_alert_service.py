@@ -137,10 +137,13 @@ class TwilioAlertService:
         location = incident_data.get('location', 'Unknown location')
         incident_type = incident_data.get('type', 'Traffic incident')
         severity = incident_data.get('severity', 'High')
-        stamp = datetime.now().strftime('%I:%M %p')
 
         prefix = f"OCULON ALERT: {incident_type} detected at "
-        suffix = f". Severity: {severity}. Time: {stamp}. Respond ASAP."
+        suffix = f". Threat level: {severity}."
+        # Same reasoning as the Discord embed: only a live feed gets a time.
+        if incident_data.get('isLive'):
+            suffix += f" Time: {datetime.now().strftime('%I:%M %p')}."
+        suffix += " Respond ASAP."
 
         room = SMS_MAX_CHARS - len(prefix) - len(suffix)
         if room < 12:                       # nothing sensible left to trim to

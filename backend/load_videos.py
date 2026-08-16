@@ -37,6 +37,11 @@ def get_video_data():
             'status': video['status'],
             'hasIncident': video.get('hasIncident', False),
             'incidentType': video.get('incidentType'),
+            # A live camera carries its own assessment - nothing analyses those
+            # streams, so if these are not passed through the frontend has no
+            # threat level to show and silently falls back to a hardcoded High.
+            'threatLevel': video.get('threatLevel'),
+            'confidence': video.get('confidence'),
             'objectsCount': video.get('objectsCount', 0),
             'lastDetection': video.get('lastDetection'),
             'crashDetails': video.get('crashDetails'),

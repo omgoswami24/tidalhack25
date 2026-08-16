@@ -52,17 +52,26 @@ class DiscordAlertService:
         severity = incident_data.get('severity', 'High')
         description = incident_data.get('description', '')
 
+        fields = [
+            {'name': 'Location', 'value': location, 'inline': False},
+            {'name': 'Threat Level', 'value': str(severity), 'inline': True},
+        ]
+
+        # Timestamp a live feed only. Recorded clips are archive footage, so the
+        # current time says nothing about when the incident actually happened
+        # and reads as though it just occurred.
+        if incident_data.get('isLive'):
+            fields.append(
+                {'name': 'Time', 'value': datetime.now().strftime('%I:%M %p'), 'inline': True}
+            )
+
         payload = {
             'username': 'Oculon',
             'embeds': [{
                 'title': f"🚨 {incident_type.capitalize()} detected",
                 'description': description,
                 'color': EMBED_COLOUR,
-                'fields': [
-                    {'name': 'Location', 'value': location, 'inline': False},
-                    {'name': 'Severity', 'value': str(severity), 'inline': True},
-                    {'name': 'Time', 'value': datetime.now().strftime('%I:%M %p'), 'inline': True},
-                ],
+                'fields': fields,
                 'footer': {'text': 'Oculon traffic monitoring'},
             }],
         }

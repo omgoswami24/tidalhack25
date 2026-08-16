@@ -37,14 +37,28 @@ const VideoDetailView = ({ video, onClose }) => {
   // describe the crash it just found instead of the current card state.
   const sendEmergencyAlert = async (overrides = {}, { automatic = false } = {}) => {
     try {
+      // A manual alert can be raised on a camera the detector has not flagged -
+      // typically a live feed, where nothing analyses the stream. Falling back
+      // to incidentDetails there would send "No incidents detected" with a
+      // threat level of None, which is not an alert worth receiving.
+      const operatorRaised = !overrides.description && !incidentActive;
+
       const alertData = {
-        type: overrides.type || incidentDetails?.type || 'Traffic Incident',
+        type: overrides.type || (operatorRaised ? 'incident' : incidentDetails?.type) || 'incident',
         location: video.location,
-        severity: overrides.severity || incidentDetails?.severity || 'High',
+        severity:
+          overrides.severity ||
+          (operatorRaised ? 'High' : incidentDetails?.severity) ||
+          'High',
         description:
           overrides.description ||
-          incidentDetails?.description ||
+          (operatorRaised
+            ? `Operator raised an alert on ${video.name}`
+            : incidentDetails?.description) ||
           `Incident detected on ${video.name}`,
+        // Only a live camera has a meaningful wall-clock time; a recorded clip
+        // is archive footage, so stamping it with "now" would be misleading.
+        isLive: Boolean(video.isLive),
         timestamp: new Date().toISOString(),
       };
 
@@ -135,7 +149,9 @@ const VideoDetailView = ({ video, onClose }) => {
             {
               type: result.crash_type || 'collision',
               severity: result.severity || 'High',
-              description: `AI detected ${result.crash_type || 'collision'} on ${video.name} at ${el.currentTime.toFixed(1)}s (confidence: ${Math.round((result.confidence || 0.95) * 100)}%)`,
+              // No playback position or confidence score: the clip's own
+              // timeline means nothing to whoever receives the alert.
+              description: `AI detected ${result.crash_type || 'collision'} on ${video.name}`,
             },
             { automatic: true }
           );
