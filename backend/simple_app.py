@@ -6,7 +6,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 from load_videos import get_video_data
-from twilio_voice_service import twilio_voice_service
+from twilio_alert_service import twilio_alert_service
 from real_crash_detector import real_crash_detector
 
 # Resolve config next to this file, not relative to the working directory, so
@@ -97,7 +97,7 @@ def health_check():
 
 @app.route('/api/security-alert', methods=['POST'])
 def send_security_alert():
-    """Send security alert via Twilio Voice Call"""
+    """Send security alert via Twilio SMS"""
     try:
         data = request.get_json()
         print(f"🚨 Security alert request received: {data}")
@@ -112,18 +112,18 @@ def send_security_alert():
                     'error': f'Missing required field: {field}'
                 }), 400
         
-        print(f"📞 Twilio Voice Service available: {twilio_voice_service.client is not None}")
-        print(f"📞 Target phone: {twilio_voice_service.target_phone}")
+        print(f"📱 Twilio Alert Service available: {twilio_alert_service.client is not None}")
+        print(f"📱 Target phone: {twilio_alert_service.target_phone}")
         
-        # Make emergency call via Twilio
-        result = twilio_voice_service.make_emergency_call(data)
-        print(f"📞 Twilio Call Result: {result}")
+        # Send the emergency alert as an SMS via Twilio
+        result = twilio_alert_service.send_emergency_alert(data)
+        print(f"📱 Twilio Alert Result: {result}")
         
         if result['success']:
             return jsonify({
                 'success': True,
-                'message': 'Emergency call initiated successfully',
-                'call_sid': result['call_sid'],
+                'message': 'Emergency alert sent successfully',
+                'message_sid': result['message_sid'],
                 'status': result['status'],
                 'to_number': result['to_number'],
                 'from_number': result['from_number']
@@ -138,7 +138,7 @@ def send_security_alert():
         print(f"❌ Error in security alert endpoint: {e}")
         return jsonify({
             'success': False,
-            'error': f'Failed to initiate emergency call: {str(e)}'
+            'error': f'Failed to send emergency alert: {str(e)}'
         }), 500
 
 @app.route('/api/start-detection', methods=['POST'])

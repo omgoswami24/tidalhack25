@@ -5,26 +5,30 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 # Credentials come from safesight.env locally, or from real environment
-# variables in hosting (Render). Load the file here rather than relying on the
+# variables in hosting (Vercel). Load the file here rather than relying on the
 # importer: this module builds its service singleton at import time, which used
 # to run before simple_app.py called load_dotenv() - so every credential read
-# as None and no call could ever be placed. Real env vars still take priority,
+# as None and no alert could ever be sent. Real env vars still take priority,
 # because load_dotenv does not override what is already set.
 load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'safesight.env'))
 load_dotenv()
 
+# SMS is billed per 160-character segment, so keep the body to one segment where
+# the location allows it and truncate rather than silently spill into a second.
+SMS_MAX_CHARS = 160
 
-class TwilioVoiceService:
+
+class TwilioAlertService:
     def __init__(self):
-        """Initialize Twilio Voice service"""
+        """Initialize the Twilio SMS alert service"""
         self._client = None
         self._client_sid = None  # sid the cached client was built with
 
-        print("✅ Twilio Voice Service initialized")
-        print(f"📞 Twilio Phone: {self.twilio_phone}")
-        print(f"📞 Target Phone: {self.target_phone}")
+        print("✅ Twilio Alert Service initialized")
+        print(f"📱 Twilio Phone: {self.twilio_phone}")
+        print(f"📱 Target Phone: {self.target_phone}")
         if not self.is_configured:
-            print("⚠️  Twilio credentials incomplete - calls will fail until "
+            print("⚠️  Twilio credentials incomplete - alerts will fail until "
                   "TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_PHONE_NUMBER are set")
 
     # Credentials are read on each access so values supplied after import
@@ -64,15 +68,15 @@ class TwilioVoiceService:
                 self._client = None
         return self._client
 
-    def make_emergency_call(self, incident_data: Dict) -> Dict:
+    def send_emergency_alert(self, incident_data: Dict) -> Dict:
         """
-        Make an emergency voice call
+        Send an emergency alert as an SMS.
 
         Args:
             incident_data: Dictionary containing incident information
 
         Returns:
-            Dictionary with success status and call SID
+            Dictionary with success status and message SID
         """
         # Report precisely which piece is missing - a bare "not available" here
         # is what made this hard to diagnose before.
@@ -95,48 +99,52 @@ class TwilioVoiceService:
             return {'success': False, 'error': 'Twilio client could not be created'}
 
         try:
-            message = self._create_voice_message(incident_data)
-            print(f"📞 Making emergency call to {self.target_phone}")
-            print(f"📝 Message: {message}")
+            body = self._create_alert_message(incident_data)
+            print(f"📱 Sending emergency SMS to {self.target_phone}")
+            print(f"📝 Body: {body}")
 
-            call = client.calls.create(
-                twiml=f'<Response><Say voice="alice">{message}</Say></Response>',
+            message = client.messages.create(
+                body=body,
                 to=self.target_phone,
                 from_=self.twilio_phone
             )
 
-            print("🚨 Emergency call initiated!")
-            print(f"📱 Call SID: {call.sid}")
-            print(f"📞 Status: {call.status}")
+            print("🚨 Emergency alert sent!")
+            print(f"📱 Message SID: {message.sid}")
+            print(f"📱 Status: {message.status}")
 
             return {
                 'success': True,
-                'call_sid': call.sid,
-                'status': call.status,
+                'message_sid': message.sid,
+                'status': message.status,
                 'to_number': self.target_phone,
                 'from_number': self.twilio_phone
             }
 
         except Exception as e:
-            print(f"❌ Error making emergency call: {e}")
+            print(f"❌ Error sending emergency alert: {e}")
             print(f"   Error type: {type(e).__name__}")
             return {
                 'success': False,
                 'error': str(e)
             }
 
-    def _create_voice_message(self, incident_data: Dict) -> str:
-        """Create formatted voice message"""
+    def _create_alert_message(self, incident_data: Dict) -> str:
+        """Build the SMS body, trimming the location before the alert loses meaning."""
         location = incident_data.get('location', 'Unknown location')
         incident_type = incident_data.get('type', 'Traffic incident')
+        severity = incident_data.get('severity', 'High')
+        stamp = datetime.now().strftime('%I:%M %p')
 
-        message = f"Emergency alert. There is an accident. Please respond to it ASAP. "
-        message += f"Location: {location}. "
-        message += f"Incident type: {incident_type}. "
-        message += f"Time: {datetime.now().strftime('%I:%M %p')}. "
-        message += "This is an automated emergency alert from Oculon traffic monitoring system."
+        prefix = f"OCULON ALERT: {incident_type} detected at "
+        suffix = f". Severity: {severity}. Time: {stamp}. Respond ASAP."
 
-        return message
+        room = SMS_MAX_CHARS - len(prefix) - len(suffix)
+        if room < 12:                       # nothing sensible left to trim to
+            return (prefix + location + suffix)[:SMS_MAX_CHARS]
+        if len(location) > room:
+            location = location[:room - 1].rstrip(' ,') + '…'
+        return prefix + location + suffix
 
     def test_connection(self) -> bool:
         """Test Twilio connection"""
@@ -154,4 +162,4 @@ class TwilioVoiceService:
 
 
 # Global instance
-twilio_voice_service = TwilioVoiceService()
+twilio_alert_service = TwilioAlertService()

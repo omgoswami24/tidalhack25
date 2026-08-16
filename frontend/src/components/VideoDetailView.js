@@ -17,8 +17,8 @@ const VideoDetailView = ({ video, onClose }) => {
   const videoRef = useRef(null);
   // Live detection result for recorded clips, polled against playback position
   const [detection, setDetection] = useState(null);
-  // Recorded clips loop, so only auto-dial once per time the modal is open
-  const autoCalledRef = useRef(false);
+  // Recorded clips loop, so only auto-alert once per time the modal is open
+  const autoAlertedRef = useRef(false);
 
   const location = video.coordinates
     ? { lat: video.coordinates.lat, lng: video.coordinates.lng, address: video.location }
@@ -31,9 +31,9 @@ const VideoDetailView = ({ video, onClose }) => {
     window.open(`https://www.google.com/maps?q=${location.lat},${location.lng}`, '_blank');
   };
 
-  // Places the emergency call. `overrides` lets the automatic detection path
+  // Sends the emergency SMS. `overrides` lets the automatic detection path
   // describe the crash it just found instead of the current card state.
-  const placeEmergencyCall = async (overrides = {}, { automatic = false } = {}) => {
+  const sendEmergencyAlert = async (overrides = {}, { automatic = false } = {}) => {
     try {
       const alertData = {
         type: overrides.type || incidentDetails?.type || 'Traffic Incident',
@@ -56,15 +56,15 @@ const VideoDetailView = ({ video, onClose }) => {
 
       if (result.success) {
         toast({
-          title: automatic ? 'Collision Detected — Calling Now' : 'Emergency Call Initiated',
-          description: `Calling ${result.to_number} — Status: ${result.status}`,
+          title: automatic ? 'Collision Detected — Alerting Now' : 'Emergency Alert Sent',
+          description: `Texted ${result.to_number} — Status: ${result.status}`,
           className:
             'border border-red-500/30 bg-zinc-950/90 text-red-100 backdrop-blur-xl shadow-[0_0_40px_rgba(239,68,68,0.15)]',
         });
       } else {
         toast({
-          title: 'Call Failed',
-          description: result.error || 'Failed to initiate emergency call',
+          title: 'Alert Failed',
+          description: result.error || 'Failed to send emergency alert',
           variant: 'destructive',
         });
       }
@@ -72,13 +72,13 @@ const VideoDetailView = ({ video, onClose }) => {
       console.error('Error sending security alert:', error);
       toast({
         title: 'Error',
-        description: 'Failed to initiate emergency call. Please try again.',
+        description: 'Failed to send emergency alert. Please try again.',
         variant: 'destructive',
       });
     }
   };
 
-  const handleSecurityAlert = () => placeEmergencyCall();
+  const handleSecurityAlert = () => sendEmergencyAlert();
 
   useEffect(() => {
     // Threat level comes from the detection system's per-crash assessment;
@@ -102,7 +102,7 @@ const VideoDetailView = ({ video, onClose }) => {
     });
   }, [video, detection, isRecorded]);
 
-  // Recorded clips: follow playback position and auto-dial on the first impact.
+  // Recorded clips: follow playback position and auto-alert on the first impact.
   // Polls whether or not the clip is playing, matching the grid. Gating this on
   // isPlaying left the last result frozen on screen after a pause, and meant a
   // scrubbed position was never re-evaluated.
@@ -124,9 +124,9 @@ const VideoDetailView = ({ video, onClose }) => {
         const result = await response.json();
         setDetection(result.has_crash ? result : null);
 
-        if (result.has_crash && !autoCalledRef.current) {
-          autoCalledRef.current = true;
-          placeEmergencyCall(
+        if (result.has_crash && !autoAlertedRef.current) {
+          autoAlertedRef.current = true;
+          sendEmergencyAlert(
             {
               type: result.crash_type || 'collision',
               severity: result.severity || 'High',
@@ -373,7 +373,7 @@ const VideoDetailView = ({ video, onClose }) => {
                 >
                   <Phone className="h-3 w-3 shrink-0" />
                   <span className="text-[10px] font-mono uppercase tracking-[0.25em]">
-                    {detection ? 'Emergency call placed' : 'Auto-dispatch armed'}
+                    {detection ? 'Emergency alert sent' : 'Auto-dispatch armed'}
                   </span>
                 </div>
               ) : (
@@ -382,7 +382,7 @@ const VideoDetailView = ({ video, onClose }) => {
                   className="bg-red-600 hover:bg-red-700 text-white px-8"
                 >
                   <Phone className="w-4 h-4 mr-2" />
-                  Call Emergency Services
+                  Alert Emergency Services
                 </Button>
               )}
             </div>

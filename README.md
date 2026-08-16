@@ -1,7 +1,7 @@
 # Oculon
 
 A traffic monitoring dashboard that watches public DOT camera feeds, flags collisions on
-recorded incident footage, and places an automated emergency voice call when one fires.
+recorded incident footage, and sends an automated emergency SMS when one fires.
 
 Live: https://oculon-one.vercel.app
 
@@ -16,8 +16,8 @@ unauthenticated HLS endpoints played with `hls.js`.
 
 Recorded clips stay paused until an operator plays them. While one plays, the frontend
 polls the backend with the clip's playback position; when the position falls inside that
-clip's incident window the dashboard raises an alert and triggers a Twilio voice call to
-the configured emergency number.
+clip's incident window the dashboard raises an alert and sends a Twilio SMS to the
+configured emergency number.
 
 ## How detection actually works
 
@@ -54,10 +54,10 @@ streams, `lucide-react` for icons.
 | `GET /api/health` | Liveness plus which optional integrations resolved |
 | `GET /api/videos` | Channel list: names, coordinates, stream URLs |
 | `POST /api/detect-crash/<clip>` | Incident state at a playback position |
-| `POST /api/security-alert` | Places the Twilio voice call |
+| `POST /api/security-alert` | Sends the Twilio SMS alert |
 
-**Alerting** — Twilio Voice. The API builds TwiML describing the incident and dials the
-number in `EMERGENCY_PHONE_NUMBER`.
+**Alerting** — Twilio SMS. The API composes a one-segment message naming the incident
+type, location, severity and time, and sends it to `EMERGENCY_PHONE_NUMBER`.
 
 ## Deployment
 
@@ -98,7 +98,7 @@ macOS binds 5000 to AirPlay Receiver.
 
 Locally these live in `backend/safesight.env`; in deployment they are environment
 variables. Only the Twilio group is required — without it every endpoint still works and
-the call fails with a message naming the missing variables.
+the alert fails with a message naming the missing variables.
 
 ```bash
 TWILIO_ACCOUNT_SID=
@@ -107,8 +107,8 @@ TWILIO_PHONE_NUMBER=
 EMERGENCY_PHONE_NUMBER=       # E.164, e.g. +15125550123
 ```
 
-On a Twilio trial account the destination number must be verified first, and calls are
-prefixed with a trial notice.
+On a Twilio trial account the destination number must be verified first (by SMS - trial
+accounts cannot verify by voice call), and messages are prefixed with a trial notice.
 
 ## Layout
 
@@ -117,7 +117,7 @@ api/index.py                        Vercel entry point; mounts the Flask app
 backend/
   simple_app.py                     Flask app and routes
   real_crash_detector.py            Incident windows and detection lookup
-  twilio_voice_service.py           Voice call service
+  twilio_alert_service.py           SMS alert service
   load_videos.py                    Channel data loader
   processed_videos.json             Channel definitions
 frontend/
@@ -136,7 +136,7 @@ vercel.json                         Build and routing config
 - One of the three clips (`V5`) has no real collision; its trigger is a staged demo cue.
 - Public DOT cameras go offline or return no-signal frames without warning. Feeds are
   checked when added, not at runtime, so a dead camera shows as a black tile.
-- Twilio trial accounts can only dial verified numbers.
+- Twilio trial accounts can only message verified numbers, and expire after 30 days.
 
 ## Credits
 
