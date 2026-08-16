@@ -1,172 +1,144 @@
-# Oculon - AI-Powered Traffic Incident Detection System
+# Oculon
 
-## 🎯 Project Overview
+A traffic monitoring dashboard that watches public DOT camera feeds, flags collisions on
+recorded incident footage, and places an automated emergency voice call when one fires.
 
-Oculon is an AI-powered real-time traffic incident detection system that analyzes live camera feeds from roads or highways, detects accidents or emergencies, and automatically alerts nearby hospitals, police stations, and emergency responders.
+Live: https://oculon-one.vercel.app
 
-## 🏗️ Architecture
+## What it does
 
-- **Frontend**: React + Tailwind CSS + shadcn/ui
-- **Backend**: Flask + Python
-- **AI Models**: YOLOv8 (object detection) + Google Gemini VLM (semantic understanding)
-- **Cloud Services**: AWS S3, SNS, Lambda, DynamoDB
-- **Database**: AWS DynamoDB for alert logs and metadata
+The dashboard shows 15 channels: 12 live HLS streams pulled straight from state DOT
+camera networks, plus 3 recorded incident clips used for demonstration.
 
-## 🚀 Quick Start
+Live feeds come from five agencies — Caltrans District 4 (5 cameras), WisDOT (2),
+NYSDOT (2), Nevada DOT (2) and Louisiana DOTD (1) — spanning six states. They are public,
+unauthenticated HLS endpoints played with `hls.js`.
 
-### Prerequisites
+Recorded clips stay paused until an operator plays them. While one plays, the frontend
+polls the backend with the clip's playback position; when the position falls inside that
+clip's incident window the dashboard raises an alert and triggers a Twilio voice call to
+the configured emergency number.
 
-- Node.js 18+
-- Python 3.9+
-- AWS Account with S3, SNS, Lambda, DynamoDB access
-- Google Gemini API key
+## How detection actually works
 
-### Environment Setup
+This is the part worth being precise about.
 
-1. Clone the repository
-2. Copy `.env.example` to `.env` and fill in your API keys
-3. Install dependencies:
-   ```bash
-   # Frontend
-   cd frontend
-   npm install
-   
-   # Backend
-   cd ../backend
-   pip install -r requirements.txt
-   ```
+Detection is **timeline-based, not a live vision model**. Each recorded clip has an
+incident window in `backend/real_crash_detector.py`, and the API answers "is there a
+collision at time *t*" by checking the playback position against that window. There is no
+per-frame inference in the request path.
 
-### Running the Application
+The windows were derived from the footage rather than guessed:
 
-1. Start the backend:
-   ```bash
-   cd backend
-   python app.py
-   ```
+| Clip | Window | Basis |
+|------|--------|-------|
+| `V1.mp4` — box truck strikes a low-clearance bridge | 6.85s – 8.50s | Real impact. The truck was tracked against a median-background model: it reaches the underpass around 5.3s, decelerates hard through 6.1s, and is fully stationary from 6.9s (centroid drift under 10 px/s after). |
+| `V3.mp4` — night intersection | 7.30s – 8.30s | **Staged.** The clip contains no collision. The vehicle marked by the source's burned-in annotation crosses at a constant 60–100 px/s and never contacts anything. |
+| `V5.mp4` — snowy freeway | 24.0s – 29.0s | **Staged.** Ordinary traffic end to end, verified by frame-difference analysis. |
 
-2. Start the frontend:
-   ```bash
-   cd frontend
-   npm run dev
-   ```
+Two of the three clips are scripted demo cues, and they are labelled as such in the source.
+Only `V1` is a genuine detection.
 
-3. Open http://localhost:3000 in your browser
+`yolov8n.pt` and a `CrashDetector` class are present in the repository from earlier work but
+are **not** wired into the serving path.
 
-## 🧑‍💻 Team Task Breakdown
+## Stack
 
-### Member 1 - Frontend (React Dashboard)
-- Build responsive dashboard with video player
-- Implement alert feed with real-time updates
-- Create detection overlay with bounding boxes
-- Design incident log sidebar
+**Frontend** — React 18, Vite 5, Tailwind CSS, Radix primitives, `hls.js` for the live
+streams, `lucide-react` for icons.
 
-### Member 2 - Backend (Flask API)
-- Set up Flask endpoints for video processing
-- Integrate YOLO detection pipeline
-- Handle video streaming and frame capture
-- Manage API communication with frontend
+**Backend** — Flask with `flask-cors`, serving a small JSON API:
 
-### Member 3 - AI Integration
-- Implement YOLOv8 for real-time object detection
-- Integrate Google Gemini VLM API
-- Create semantic analysis pipeline
-- Optimize model performance
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/health` | Liveness plus which optional integrations resolved |
+| `GET /api/videos` | Channel list: names, coordinates, stream URLs |
+| `POST /api/detect-crash/<clip>` | Incident state at a playback position |
+| `POST /api/security-alert` | Places the Twilio voice call |
 
-### Member 4 - AWS & Alerts
-- Set up AWS SNS for notifications
-- Configure S3 for video storage
-- Implement Lambda functions for event processing
-- Set up DynamoDB for data persistence
+**Alerting** — Twilio Voice. The API builds TwiML describing the incident and dials the
+number in `EMERGENCY_PHONE_NUMBER`.
 
-## 🔧 Configuration
+## Deployment
 
-### Required Environment Variables
+Deployed to Vercel as a single project. The Vite build is served statically and the Flask
+app runs as a Python serverless function via `api/index.py`, with `vercel.json` routing
+`/api/*` to it. Frontend and API share an origin, so there is no CORS layer and no backend
+URL to configure per environment — `frontend/src/config/api.js` falls back to relative URLs
+in production.
+
+The serverless bundle installs only Flask, `flask-cors`, `python-dotenv` and Twilio.
+`boto3`, `google-generativeai`, OpenCV, Pillow and NumPy are imported defensively in
+`simple_app.py` and are absent from the deployed function — none of the serving endpoints
+need them.
+
+Pushes to `main` deploy automatically.
+
+## Running locally
+
+Backend, from `backend/` (Python 3.9+):
 
 ```bash
-# AWS Configuration
-AWS_ACCESS_KEY_ID=your_aws_access_key
-AWS_SECRET_ACCESS_KEY=your_aws_secret_key
-AWS_REGION=us-east-1
-SNS_TOPIC_ARN=your_sns_topic_arn
-S3_BUCKET_NAME=your_s3_bucket
-
-# Google Gemini
-GEMINI_API_KEY=your_gemini_api_key
-
-# Application
-FLASK_ENV=development
-FRONTEND_URL=http://localhost:3000
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+python simple_app.py          # http://localhost:5001
 ```
 
-## 📁 Project Structure
+Frontend, from `frontend/` (Node 18+):
 
-```
-tidalhack25/
-├── frontend/                 # React frontend
-│   ├── src/
-│   │   ├── components/      # Reusable UI components
-│   │   ├── pages/          # Page components
-│   │   ├── hooks/          # Custom React hooks
-│   │   ├── services/       # API services
-│   │   └── utils/          # Utility functions
-│   ├── public/
-│   └── package.json
-├── backend/                 # Flask backend
-│   ├── app.py              # Main Flask application
-│   ├── models/             # AI model integration
-│   ├── services/           # Business logic
-│   ├── utils/              # Utility functions
-│   └── requirements.txt
-├── aws/                    # AWS infrastructure
-│   ├── lambda/             # Lambda functions
-│   ├── cloudformation/     # Infrastructure as code
-│   └── scripts/            # Deployment scripts
-├── docs/                   # Documentation
-└── .env.example           # Environment variables template
+```bash
+npm install
+npm run dev                   # http://localhost:3000
 ```
 
-## 🎥 Demo Features
+The frontend targets `http://localhost:5001` in development. Port 5001 is deliberate —
+macOS binds 5000 to AirPlay Receiver.
 
-- Real-time video feed with object detection overlay
-- Live incident detection and alert generation
-- Historical incident log with timestamps and descriptions
-- AWS notification system integration
-- Responsive dashboard design
+## Configuration
 
-## 🚨 Emergency Alert Flow
+Locally these live in `backend/safesight.env`; in deployment they are environment
+variables. Only the Twilio group is required — without it every endpoint still works and
+the call fails with a message naming the missing variables.
 
-1. **Video Capture**: Live camera feed or uploaded video
-2. **Object Detection**: YOLOv8 detects vehicles, people, objects
-3. **Semantic Analysis**: Gemini VLM analyzes frames for incident patterns
-4. **Alert Trigger**: System confirms incident and triggers alert
-5. **Notification**: AWS SNS sends alerts to emergency services
-6. **Dashboard Update**: Real-time UI updates with incident details
+```bash
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_PHONE_NUMBER=
+EMERGENCY_PHONE_NUMBER=       # E.164, e.g. +15125550123
+```
 
-## 📱 Mobile Support
+On a Twilio trial account the destination number must be verified first, and calls are
+prefixed with a trial notice.
 
-The dashboard is fully responsive and works on desktop, tablet, and mobile devices.
+## Layout
 
-## 🔒 Security
+```
+api/index.py                        Vercel entry point; mounts the Flask app
+backend/
+  simple_app.py                     Flask app and routes
+  real_crash_detector.py            Incident windows and detection lookup
+  twilio_voice_service.py           Voice call service
+  load_videos.py                    Channel data loader
+  processed_videos.json             Channel definitions
+frontend/
+  src/pages/Dashboard.js            Dashboard shell
+  src/components/SurveillanceGrid.js   Camera grid, detection polling
+  src/components/VideoDetailView.js    Per-camera detail, map, alerting
+  src/components/LiveStreamPlayer.js   hls.js player
+  public/Videos/                    Recorded clips (see CREDITS.md)
+vercel.json                         Build and routing config
+```
 
-- API keys stored in environment variables
-- AWS IAM roles for secure service access
-- Input validation and sanitization
-- HTTPS in production
+## Known limitations
 
-## 📈 Performance
+- Detection runs against fixed windows on three recorded clips. Live feeds are displayed
+  and monitored but never analysed — nothing infers on them.
+- Two of the three clips have no real collision; their triggers are staged for demo.
+- Public DOT cameras go offline or return no-signal frames without warning. Feeds are
+  checked when added, not at runtime, so a dead camera shows as a black tile.
+- Twilio trial accounts can only dial verified numbers.
 
-- Optimized video processing pipeline
-- Efficient model inference
-- Real-time updates with minimal latency
-- Scalable AWS infrastructure
+## Credits
 
-## 🤝 Contributing
-
-1. Create a feature branch
-2. Make your changes
-3. Test thoroughly
-4. Submit a pull request
-
-## 📄 License
-
-MIT License - see LICENSE file for details
+Recorded clips are public or permissively licensed footage; sources are listed in
+`frontend/public/Videos/CREDITS.md`. Live imagery belongs to the respective state DOTs.
