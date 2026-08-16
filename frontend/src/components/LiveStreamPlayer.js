@@ -14,6 +14,12 @@ const TZ_LABELS = {
 // fatal errors so a momentary blip does not blank a working camera.
 const MAX_RECOVERY_ATTEMPTS = 3;
 
+// If no frame has rendered by now, treat the camera as unavailable. Without
+// this a host that accepts the TCP connection but never answers leaves hls.js
+// waiting indefinitely and the tile simply stays black - indistinguishable
+// from a feed that is still loading.
+const STARTUP_TIMEOUT_MS = 15000;
+
 const formatCameraTime = (tz) =>
   new Intl.DateTimeFormat('en-US', {
     timeZone: tz,
@@ -37,6 +43,12 @@ const LiveStreamPlayer = ({ src, className = '', showClock = true, tz = 'America
 
     setFailed(false);
     const startPlayback = () => video.play().catch(() => {});
+
+    // Cleared by the first 'playing' event, so only a feed that never renders
+    // anything trips it.
+    const watchdog = setTimeout(() => setFailed(true), STARTUP_TIMEOUT_MS);
+    const cancelWatchdog = () => clearTimeout(watchdog);
+    video.addEventListener('playing', cancelWatchdog);
 
     // hls.js is tried FIRST, and native HLS only as the fallback. Chrome answers
     // canPlayType('application/vnd.apple.mpegurl') with "maybe" but cannot
@@ -65,7 +77,11 @@ const LiveStreamPlayer = ({ src, className = '', showClock = true, tz = 'America
         }
       });
 
-      return () => hls.destroy();
+      return () => {
+        cancelWatchdog();
+        video.removeEventListener('playing', cancelWatchdog);
+        hls.destroy();
+      };
     }
 
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
@@ -73,10 +89,14 @@ const LiveStreamPlayer = ({ src, className = '', showClock = true, tz = 'America
       video.addEventListener('loadedmetadata', startPlayback);
       video.addEventListener('error', () => setFailed(true));
       return () => {
+        cancelWatchdog();
+        video.removeEventListener('playing', cancelWatchdog);
         video.removeEventListener('loadedmetadata', startPlayback);
       };
     }
 
+    cancelWatchdog();
+    video.removeEventListener('playing', cancelWatchdog);
     setFailed(true);
     return undefined;
   }, [src]);
