@@ -1,110 +1,5 @@
 [
   {
-    "id": 1,
-    "name": "I-80 @ Ashby Ave",
-    "location": "I-80 Eastbound, Berkeley, CA",
-    "status": "online",
-    "hasIncident": false,
-    "incidentType": null,
-    "objectsCount": 0,
-    "lastDetection": null,
-    "crashDetails": null,
-    "isLive": true,
-    "streamUrl": "https://wzmedia.dot.ca.gov/D4/E80_JWO_ASHBY_Av.stream/playlist.m3u8",
-    "coordinates": {
-      "lat": 37.84672,
-      "lng": -122.29806
-    },
-    "processingResult": {
-      "source": "Caltrans District 4 public live stream"
-    },
-    "tz": "America/Los_Angeles"
-  },
-  {
-    "id": 2,
-    "name": "I-80 @ US-101 Junction",
-    "location": "I-80 Eastbound, San Francisco, CA",
-    "status": "online",
-    "hasIncident": false,
-    "incidentType": null,
-    "objectsCount": 0,
-    "lastDetection": null,
-    "crashDetails": null,
-    "isLive": true,
-    "streamUrl": "https://wzmedia.dot.ca.gov/D4/E80_at_JCT_101.stream/playlist.m3u8",
-    "coordinates": {
-      "lat": 37.77025,
-      "lng": -122.40554
-    },
-    "processingResult": {
-      "source": "Caltrans District 4 public live stream"
-    },
-    "tz": "America/Los_Angeles"
-  },
-  {
-    "id": 3,
-    "name": "Bay Bridge @ SAS Tower",
-    "location": "I-80 Westbound, SF Bay Bridge, CA",
-    "status": "online",
-    "hasIncident": false,
-    "incidentType": null,
-    "objectsCount": 0,
-    "lastDetection": null,
-    "crashDetails": null,
-    "isLive": true,
-    "streamUrl": "https://wzmedia.dot.ca.gov/D4/W80_at_SAS_Tower.stream/playlist.m3u8",
-    "coordinates": {
-      "lat": 37.81526,
-      "lng": -122.35855
-    },
-    "processingResult": {
-      "source": "Caltrans District 4 public live stream"
-    },
-    "tz": "America/Los_Angeles"
-  },
-  {
-    "id": 4,
-    "name": "I-280 @ 6th St Offramp",
-    "location": "I-280 Northbound, San Francisco, CA",
-    "status": "online",
-    "hasIncident": false,
-    "incidentType": null,
-    "objectsCount": 0,
-    "lastDetection": null,
-    "crashDetails": null,
-    "isLive": true,
-    "streamUrl": "https://wzmedia.dot.ca.gov/D4/N280_at_6th.stream/playlist.m3u8",
-    "coordinates": {
-      "lat": 37.77145,
-      "lng": -122.3974
-    },
-    "processingResult": {
-      "source": "Caltrans District 4 public live stream (cctvStatusD04 feed)"
-    },
-    "tz": "America/Los_Angeles"
-  },
-  {
-    "id": 5,
-    "name": "I-880 @ SR-84 Junction",
-    "location": "I-880 Southbound, Fremont, CA",
-    "status": "online",
-    "hasIncident": false,
-    "incidentType": null,
-    "objectsCount": 0,
-    "lastDetection": null,
-    "crashDetails": null,
-    "isLive": true,
-    "streamUrl": "https://wzmedia.dot.ca.gov/D4/S880_at_JCT_84.stream/playlist.m3u8",
-    "coordinates": {
-      "lat": 37.56423,
-      "lng": -122.03965
-    },
-    "processingResult": {
-      "source": "Caltrans District 4 public live stream (cctvStatusD04 feed)"
-    },
-    "tz": "America/Los_Angeles"
-  },
-  {
     "name": "I-190 @ Exit 6",
     "location": "I-190 Northbound, Buffalo, NY",
     "status": "online",
@@ -249,6 +144,111 @@
       "source": "LA DOT public live stream"
     },
     "id": 12,
+    "tz": "America/Chicago"
+  },
+  {
+    "id": 101,
+    "name": "I-290 @ I-990 Interchange",
+    "location": "I-290, Eggertsville, NY",
+    "status": "online",
+    "hasIncident": false,
+    "incidentType": null,
+    "objectsCount": 0,
+    "lastDetection": null,
+    "crashDetails": null,
+    "isLive": true,
+    "streamUrl": "https://s53.nysdot.skyvdn.com:443/rtplive/R5_029/playlist.m3u8",
+    "coordinates": {
+      "lat": 42.9907,
+      "lng": -78.7992
+    },
+    "processingResult": {
+      "source": "NY DOT public live stream"
+    },
+    "tz": "America/New_York"
+  },
+  {
+    "id": 102,
+    "name": "I-95 @ Interchange 15",
+    "location": "I-95 New England Thruway, New Rochelle, NY",
+    "status": "online",
+    "hasIncident": false,
+    "incidentType": null,
+    "objectsCount": 0,
+    "lastDetection": null,
+    "crashDetails": null,
+    "isLive": true,
+    "streamUrl": "https://s53.nysdot.skyvdn.com:443/rtplive/TA_052/playlist.m3u8",
+    "coordinates": {
+      "lat": 40.8997,
+      "lng": -73.7959
+    },
+    "processingResult": {
+      "source": "NY DOT public live stream"
+    },
+    "tz": "America/New_York"
+  },
+  {
+    "id": 103,
+    "name": "I-39/90 @ Buckeye Rd",
+    "location": "I-39/90, Madison, WI",
+    "status": "online",
+    "hasIncident": false,
+    "incidentType": null,
+    "objectsCount": 0,
+    "lastDetection": null,
+    "crashDetails": null,
+    "isLive": true,
+    "streamUrl": "https://cctv2.dot.wi.gov/rtplive/CCTV-13-0008/playlist.m3u8",
+    "coordinates": {
+      "lat": 43.074,
+      "lng": -89.2799
+    },
+    "processingResult": {
+      "source": "WI DOT public live stream"
+    },
+    "tz": "America/Chicago"
+  },
+  {
+    "id": 104,
+    "name": "I-110 @ Florida St",
+    "location": "I-110, Baton Rouge, LA",
+    "status": "online",
+    "hasIncident": false,
+    "incidentType": null,
+    "objectsCount": 0,
+    "lastDetection": null,
+    "crashDetails": null,
+    "isLive": true,
+    "streamUrl": "https://ITSStreamingBR.dotd.la.gov/public/br-cam-013.streams/playlist.m3u8",
+    "coordinates": {
+      "lat": 30.4499,
+      "lng": -91.1802
+    },
+    "processingResult": {
+      "source": "LA DOT public live stream"
+    },
+    "tz": "America/Chicago"
+  },
+  {
+    "id": 105,
+    "name": "I-20 @ I-220 Off Ramp",
+    "location": "I-20, Bossier City, LA",
+    "status": "online",
+    "hasIncident": false,
+    "incidentType": null,
+    "objectsCount": 0,
+    "lastDetection": null,
+    "crashDetails": null,
+    "isLive": true,
+    "streamUrl": "https://ITSStreamingBR2.dotd.la.gov/public/shr-cam-030.streams/playlist.m3u8",
+    "coordinates": {
+      "lat": 32.5389,
+      "lng": -93.6308
+    },
+    "processingResult": {
+      "source": "LA DOT public live stream"
+    },
     "tz": "America/Chicago"
   },
   {

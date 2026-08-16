@@ -10,9 +10,10 @@ Live: https://oculon-one.vercel.app
 The dashboard shows 15 channels: 12 live HLS streams pulled straight from state DOT
 camera networks, plus 3 recorded incident clips used for demonstration.
 
-Live feeds come from five agencies — Caltrans District 4 (5 cameras), WisDOT (2),
-NYSDOT (2), Nevada DOT (2) and Louisiana DOTD (1) — spanning six states. They are public,
-unauthenticated HLS endpoints played with `hls.js`.
+Live feeds come from four agencies — NYSDOT (4 cameras), WisDOT (3), Louisiana DOTD (3)
+and Nevada DOT (2). They are public, unauthenticated HLS endpoints played with `hls.js`,
+and each was checked for a real picture rather than just a reachable playlist: a dead
+camera answers 200 and streams black.
 
 Recorded clips stay paused until an operator plays them. While one plays, the frontend
 polls the backend with the clip's playback position; when the position falls inside that
@@ -150,7 +151,10 @@ vercel.json                         Build and routing config
   and monitored but never analysed — nothing infers on them.
 - One of the three clips (`V5`) has no real collision; its trigger is a staged demo cue.
 - Public DOT cameras go offline or return no-signal frames without warning. Feeds are
-  checked when added, not at runtime, so a dead camera shows as a black tile.
+  checked when added, not at runtime; a camera that stops responding shows NO SIGNAL
+  after a 15s startup timeout rather than sitting black.
+- Some agencies throttle by IP. Caltrans feeds were dropped after repeated automated
+  requests from one address got that host to stop answering it entirely.
 - Twilio trial accounts cannot send custom message bodies at all; they substitute canned
   template text. Custom SMS needs an upgraded account, which is why Discord is the default.
 
