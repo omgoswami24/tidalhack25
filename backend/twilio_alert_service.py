@@ -19,6 +19,8 @@ SMS_MAX_CHARS = 160
 
 
 class TwilioAlertService:
+    name = 'sms'
+
     def __init__(self):
         """Initialize the Twilio SMS alert service"""
         self._client = None
@@ -115,9 +117,10 @@ class TwilioAlertService:
 
             return {
                 'success': True,
+                'channel': 'sms',
                 'message_sid': message.sid,
                 'status': message.status,
-                'to_number': self.target_phone,
+                'destination': self.target_phone,
                 'from_number': self.twilio_phone
             }
 

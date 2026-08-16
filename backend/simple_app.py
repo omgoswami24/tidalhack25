@@ -6,7 +6,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 from load_videos import get_video_data
-from twilio_alert_service import twilio_alert_service
+import alert_service
 from real_crash_detector import real_crash_detector
 
 # Resolve config next to this file, not relative to the working directory, so
@@ -112,21 +112,19 @@ def send_security_alert():
                     'error': f'Missing required field: {field}'
                 }), 400
         
-        print(f"📱 Twilio Alert Service available: {twilio_alert_service.client is not None}")
-        print(f"📱 Target phone: {twilio_alert_service.target_phone}")
-        
-        # Send the emergency alert as an SMS via Twilio
-        result = twilio_alert_service.send_emergency_alert(data)
-        print(f"📱 Twilio Alert Result: {result}")
+        print(f"📢 Configured alert channels: {alert_service.configured_channels() or 'none'}")
+
+        # Dispatch to the first configured channel that accepts it
+        result = alert_service.send_emergency_alert(data)
+        print(f"📢 Alert result: {result}")
         
         if result['success']:
             return jsonify({
                 'success': True,
                 'message': 'Emergency alert sent successfully',
-                'message_sid': result['message_sid'],
-                'status': result['status'],
-                'to_number': result['to_number'],
-                'from_number': result['from_number']
+                'channel': result.get('channel'),
+                'status': result.get('status'),
+                'destination': result.get('destination')
             })
         else:
             return jsonify({

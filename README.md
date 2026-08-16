@@ -1,7 +1,7 @@
 # Oculon
 
 A traffic monitoring dashboard that watches public DOT camera feeds, flags collisions on
-recorded incident footage, and sends an automated emergency SMS when one fires.
+recorded incident footage, and dispatches an automated emergency alert when one fires.
 
 Live: https://oculon-one.vercel.app
 
@@ -16,8 +16,8 @@ unauthenticated HLS endpoints played with `hls.js`.
 
 Recorded clips stay paused until an operator plays them. While one plays, the frontend
 polls the backend with the clip's playback position; when the position falls inside that
-clip's incident window the dashboard raises an alert and sends a Twilio SMS to the
-configured emergency number.
+clip's incident window the dashboard raises an alert and dispatches it to the configured
+channel.
 
 ## How detection actually works
 
@@ -54,10 +54,18 @@ streams, `lucide-react` for icons.
 | `GET /api/health` | Liveness plus which optional integrations resolved |
 | `GET /api/videos` | Channel list: names, coordinates, stream URLs |
 | `POST /api/detect-crash/<clip>` | Incident state at a playback position |
-| `POST /api/security-alert` | Sends the Twilio SMS alert |
+| `POST /api/security-alert` | Dispatches the alert to the configured channel |
 
-**Alerting** — Twilio SMS. The API composes a one-segment message naming the incident
-type, location, severity and time, and sends it to `EMERGENCY_PHONE_NUMBER`.
+**Alerting** — pluggable. `backend/alert_service.py` tries each provider in order and the
+first success wins, so deployment picks the channel rather than the code:
+
+- **Discord** (`DISCORD_WEBHOOK_URL`) posts a red embed naming the incident type, location,
+  severity and time.
+- **Twilio SMS** (the `TWILIO_*` group) sends a one-segment text with the same detail.
+
+Discord is tried first because it carries the full incident text on a free account. A
+Twilio *trial* rejects custom message bodies and substitutes canned template text, so it
+can deliver a message but not this one — the SMS path needs an upgraded Twilio account.
 
 ## Deployment
 
@@ -97,18 +105,23 @@ macOS binds 5000 to AirPlay Receiver.
 ## Configuration
 
 Locally these live in `backend/safesight.env`; in deployment they are environment
-variables. Only the Twilio group is required — without it every endpoint still works and
-the alert fails with a message naming the missing variables.
+variables. None are required — without them every endpoint still works and only the alert
+fails, reporting which channel was missing what.
+
+Configure whichever channel you want. Discord needs one value:
+
+```bash
+DISCORD_WEBHOOK_URL=          # Server Settings > Integrations > Webhooks
+```
+
+Twilio SMS needs four, and an upgraded (non-trial) account:
 
 ```bash
 TWILIO_ACCOUNT_SID=
 TWILIO_AUTH_TOKEN=
-TWILIO_PHONE_NUMBER=
-EMERGENCY_PHONE_NUMBER=       # E.164, e.g. +15125550123
+TWILIO_PHONE_NUMBER=          # a number Twilio issued you, the sender
+EMERGENCY_PHONE_NUMBER=       # E.164, e.g. +15125550123, the recipient
 ```
-
-On a Twilio trial account the destination number must be verified first (by SMS - trial
-accounts cannot verify by voice call), and messages are prefixed with a trial notice.
 
 ## Layout
 
@@ -117,7 +130,9 @@ api/index.py                        Vercel entry point; mounts the Flask app
 backend/
   simple_app.py                     Flask app and routes
   real_crash_detector.py            Incident windows and detection lookup
-  twilio_alert_service.py           SMS alert service
+  alert_service.py                  Chooses the configured alert channel
+  discord_alert_service.py          Discord webhook alerts
+  twilio_alert_service.py           SMS alerts
   load_videos.py                    Channel data loader
   processed_videos.json             Channel definitions
 frontend/
@@ -136,7 +151,8 @@ vercel.json                         Build and routing config
 - One of the three clips (`V5`) has no real collision; its trigger is a staged demo cue.
 - Public DOT cameras go offline or return no-signal frames without warning. Feeds are
   checked when added, not at runtime, so a dead camera shows as a black tile.
-- Twilio trial accounts can only message verified numbers, and expire after 30 days.
+- Twilio trial accounts cannot send custom message bodies at all; they substitute canned
+  template text. Custom SMS needs an upgraded account, which is why Discord is the default.
 
 ## Credits
 

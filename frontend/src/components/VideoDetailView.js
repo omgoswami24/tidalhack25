@@ -33,7 +33,7 @@ const VideoDetailView = ({ video, onClose }) => {
     window.open(`https://www.google.com/maps?q=${location.lat},${location.lng}`, '_blank');
   };
 
-  // Sends the emergency SMS. `overrides` lets the automatic detection path
+  // Sends the emergency alert. `overrides` lets the automatic detection path
   // describe the crash it just found instead of the current card state.
   const sendEmergencyAlert = async (overrides = {}, { automatic = false } = {}) => {
     try {
@@ -59,7 +59,10 @@ const VideoDetailView = ({ video, onClose }) => {
       if (result.success) {
         toast({
           title: automatic ? 'Collision Detected — Alerting Now' : 'Emergency Alert Sent',
-          description: `Texted ${result.to_number} — Status: ${result.status}`,
+          description:
+            result.channel === 'discord'
+              ? 'Posted to the Discord dispatch channel'
+              : `Texted ${result.destination} — Status: ${result.status}`,
           className:
             'border border-red-500/30 bg-zinc-950/90 text-red-100 backdrop-blur-xl shadow-[0_0_40px_rgba(239,68,68,0.15)]',
         });
