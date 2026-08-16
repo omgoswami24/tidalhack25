@@ -19,6 +19,8 @@ const VideoDetailView = ({ video, onClose }) => {
   const [detection, setDetection] = useState(null);
   // Recorded clips loop, so only auto-alert once per time the modal is open
   const autoAlertedRef = useRef(false);
+  // Last observed playhead, used to notice a loop or a backward scrub
+  const lastTimeRef = useRef(0);
 
   const location = video.coordinates
     ? { lat: video.coordinates.lat, lng: video.coordinates.lng, address: video.location }
@@ -143,12 +145,26 @@ const VideoDetailView = ({ video, onClose }) => {
     return () => clearInterval(interval);
   }, [isRecorded, video.filename]);
 
+  // Drive state from the element's own play/pause events rather than assuming
+  // the toggle succeeded - play() returns a promise the browser can reject, and
+  // flipping isPlaying optimistically left the button showing Pause over a clip
+  // that never started.
   const togglePlayPause = () => {
-    if (videoRef.current) {
-      if (isPlaying) videoRef.current.pause();
-      else videoRef.current.play();
-      setIsPlaying(!isPlaying);
-    }
+    const el = videoRef.current;
+    if (!el) return;
+    if (el.paused) el.play().catch(() => {});
+    else el.pause();
+  };
+
+  // A loop back to the start, or a backward scrub, invalidates whatever the
+  // detector last reported. Clearing it here rather than waiting for the next
+  // 500ms poll stops COLLISION from lingering over the opening frames.
+  const handleTimeUpdate = () => {
+    const el = videoRef.current;
+    if (!el) return;
+    if (el.currentTime < lastTimeRef.current - 0.25) setDetection(null);
+    lastTimeRef.current = el.currentTime;
+    setCurrentTime(el.currentTime);
   };
 
   const formatTime = (seconds) => {
@@ -257,7 +273,8 @@ const VideoDetailView = ({ video, onClose }) => {
                       playsInline
                       preload="metadata"
                       onLoadedMetadata={(e) => seekToPosterFrame(e.currentTarget)}
-                      onTimeUpdate={() => videoRef.current && setCurrentTime(videoRef.current.currentTime)}
+                      onTimeUpdate={handleTimeUpdate}
+                      onSeeked={() => setDetection(null)}
                       onPlay={() => setIsPlaying(true)}
                       onPause={() => setIsPlaying(false)}
                     />

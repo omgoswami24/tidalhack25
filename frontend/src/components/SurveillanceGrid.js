@@ -18,21 +18,15 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
   // Recorded tiles stay paused until played, so a demo starts from a still frame
   const [playingIds, setPlayingIds] = useState(() => new Set());
 
+  // The element's own play/pause events maintain playingIds, so this only asks.
+  // Updating the set here as well assumed play() succeeded, which left a tile
+  // showing Pause when the browser refused to start it.
   const toggleTilePlayback = (video, e) => {
     e.stopPropagation();
     const el = document.querySelector(`video[data-cam-id="${video.id}"]`);
     if (!el) return;
-    setPlayingIds(prev => {
-      const next = new Set(prev);
-      if (el.paused) {
-        el.play();
-        next.add(video.id);
-      } else {
-        el.pause();
-        next.delete(video.id);
-      }
-      return next;
-    });
+    if (el.paused) el.play().catch(() => {});
+    else el.pause();
   };
 
   useEffect(() => {
