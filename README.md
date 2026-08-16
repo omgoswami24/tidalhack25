@@ -52,6 +52,8 @@ Oculon is an AI-powered real-time traffic incident detection system that analyze
 
 3. Open http://localhost:3000 in your browser
 
+4. Or: The app is being hosted live on https://oculon-one.vercel.app/ too!
+
 ## 🧑‍💻 Team Task Breakdown
 
 ### Member 1 - Frontend (React Dashboard)
