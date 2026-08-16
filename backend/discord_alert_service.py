@@ -16,6 +16,12 @@ load_dotenv()
 EMBED_COLOUR = 0xED4245
 REQUEST_TIMEOUT_SECONDS = 10
 
+# Discord sits behind Cloudflare, which rejects urllib's default
+# "Python-urllib/3.x" agent with HTTP 403 error code 1010 before the request
+# ever reaches the webhook. Their API docs ask for an identifying agent, so
+# send one.
+USER_AGENT = 'Oculon-TrafficMonitor (https://oculon-one.vercel.app, 1.0)'
+
 
 class DiscordAlertService:
     """Posts incident alerts to a Discord channel via an incoming webhook.
@@ -64,7 +70,7 @@ class DiscordAlertService:
         request = urllib.request.Request(
             self.webhook_url,
             data=json.dumps(payload).encode('utf-8'),
-            headers={'Content-Type': 'application/json'},
+            headers={'Content-Type': 'application/json', 'User-Agent': USER_AGENT},
             method='POST',
         )
 
