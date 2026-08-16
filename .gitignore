@@ -146,3 +146,4 @@ setup-with-keys.sh
 backend/Videos
 Treehacks2025-main/
 .vercel
+.env*
