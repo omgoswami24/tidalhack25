@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Play, Pause, MapPin, Activity, Phone } from 'lucide-react';
+import { X, Play, Pause, MapPin, Activity, Phone, AlertTriangle } from 'lucide-react';
 import { Button } from './ui/button';
 import { useToast } from '../hooks/use-toast';
 import { API_BASE_URL } from '../config/api';
@@ -103,8 +103,11 @@ const VideoDetailView = ({ video, onClose }) => {
   }, [video, detection, isRecorded]);
 
   // Recorded clips: follow playback position and auto-dial on the first impact.
+  // Polls whether or not the clip is playing, matching the grid. Gating this on
+  // isPlaying left the last result frozen on screen after a pause, and meant a
+  // scrubbed position was never re-evaluated.
   useEffect(() => {
-    if (!isRecorded || !isPlaying) return;
+    if (!isRecorded) return;
 
     const interval = setInterval(async () => {
       const el = videoRef.current;
@@ -138,7 +141,7 @@ const VideoDetailView = ({ video, onClose }) => {
     }, 500);
 
     return () => clearInterval(interval);
-  }, [isRecorded, isPlaying, video.filename]);
+  }, [isRecorded, video.filename]);
 
   const togglePlayPause = () => {
     if (videoRef.current) {
@@ -176,6 +179,16 @@ const VideoDetailView = ({ video, onClose }) => {
 
   const threatLevel = incidentDetails?.threatLevel || 'None';
 
+  // Single source for every incident visual in this view. Recorded clips follow
+  // the live detection poll; live feeds fall back to the flag on the record.
+  // The `video` prop is a snapshot taken when the modal opened and never
+  // updates, so reading hasIncident here would leave a recorded clip looking
+  // clear no matter what the detector reports.
+  const incidentActive = isRecorded ? Boolean(detection) : Boolean(video.hasIncident);
+  const incidentLabel = ((isRecorded ? detection?.crash_type : video.incidentType) || 'collision')
+    .toUpperCase()
+    .replace('ROLLOVER', 'COLLISION');
+
   return (
     <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
       <div
@@ -192,7 +205,7 @@ const VideoDetailView = ({ video, onClose }) => {
             </p>
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            {video.hasIncident && (
+            {incidentActive && (
               <span className="rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.25em] text-red-300 animate-pulse">
                 Incident
               </span>
@@ -224,7 +237,11 @@ const VideoDetailView = ({ video, onClose }) => {
                   {video.status === 'online' ? 'Online' : 'Offline'}
                 </span>
               </div>
-              <div className="relative aspect-video bg-black">
+              <div
+                className={`relative aspect-video bg-black transition-shadow duration-300 ${
+                  incidentActive ? 'ring-1 ring-red-500/50 shadow-[0_0_32px_rgba(239,68,68,0.18)]' : ''
+                }`}
+              >
                 {video.isLive && video.streamUrl ? (
                   <LiveStreamPlayer src={video.streamUrl} tz={video.tz} className="w-full h-full object-cover" />
                 ) : video.isLive && video.liveImageUrl ? (
@@ -255,8 +272,33 @@ const VideoDetailView = ({ video, onClose }) => {
                         </button>
                         <span className="font-mono text-xs tabular-nums text-zinc-400">{formatTime(currentTime)}</span>
                       </div>
+                      <div className="flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-black/60 px-2.5 py-1 backdrop-blur-md">
+                        <span
+                          className={`h-1 w-1 rounded-full ${
+                            incidentActive ? 'bg-red-400' : 'bg-emerald-400 animate-pulse'
+                          }`}
+                        />
+                        <span
+                          className={`text-[9px] font-mono uppercase tracking-[0.25em] ${
+                            incidentActive ? 'text-red-300' : 'text-emerald-300'
+                          }`}
+                        >
+                          {incidentActive ? 'Detected' : 'Analyzing'}
+                        </span>
+                      </div>
                     </div>
                   </>
+                )}
+
+                {/* Incident overlay, mirroring the surveillance grid so a camera
+                    reads the same whether it is a tile or opened in detail. */}
+                {incidentActive && (
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-red-500/20">
+                    <div className="text-center">
+                      <AlertTriangle className="mx-auto mb-2 h-12 w-12 animate-pulse text-red-400" />
+                      <p className="text-lg font-bold text-red-400">{incidentLabel}</p>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
