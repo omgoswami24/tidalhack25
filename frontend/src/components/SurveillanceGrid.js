@@ -2,219 +2,87 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { AlertTriangle, Wifi, WifiOff, Play, Pause, Square, Eye, AlertCircle, MapPin } from 'lucide-react';
+import { AlertTriangle, Wifi, WifiOff, Eye, MapPin, Play, Pause } from 'lucide-react';
 import CameraLocationMap from './CameraLocationMap';
+import { API_BASE_URL } from '../config/api';
+import { seekToPosterFrame } from '../config/video';
+import LiveFeedImage from './LiveFeedImage';
+import LiveStreamPlayer from './LiveStreamPlayer';
 
 const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
+  // Detection runs automatically - no manual start/stop
+  const [detectionActive] = useState(true);
   const [videos, setVideos] = useState([]);
-  const [detectionActive, setDetectionActive] = useState(false);
   const [incidents, setIncidents] = useState([]);
   const [selectedCamera, setSelectedCamera] = useState(null);
-  const [showLocationMap, setShowLocationMap] = useState(false);
-  const [stats, setStats] = useState({
-    totalCameras: 0,
-    onlineCameras: 0,
-    totalIncidents: 0,
-    activeIncidents: 0
-  });
+  // Recorded tiles stay paused until played, so a demo starts from a still frame
+  const [playingIds, setPlayingIds] = useState(() => new Set());
 
-  // Mock video feeds with different crash scenarios
-  const mockVideoFeeds = [
-    {
-      id: 1,
-      name: 'Highway 101 - Northbound',
-      location: 'Highway 101, Mile 45.2, San Francisco, CA',
-      coordinates: { lat: 37.7749, lng: -122.4194 },
-      status: 'online',
-      hasIncident: true,
-      incidentType: 'collision',
-      objectsCount: 4,
-      lastDetection: new Date(Date.now() - 2 * 60 * 1000), // 2 minutes ago
-      crashDetails: {
-        type: 'Multi-vehicle collision',
-        severity: 'Critical',
-        vehiclesInvolved: 3,
-        injuries: 'Multiple injuries reported',
-        description: 'Three vehicles involved in high-speed collision with debris scattered across lanes'
+  const toggleTilePlayback = (video, e) => {
+    e.stopPropagation();
+    const el = document.querySelector(`video[data-cam-id="${video.id}"]`);
+    if (!el) return;
+    setPlayingIds(prev => {
+      const next = new Set(prev);
+      if (el.paused) {
+        el.play();
+        next.add(video.id);
+      } else {
+        el.pause();
+        next.delete(video.id);
       }
-    },
-    {
-      id: 2,
-      name: 'I-280 - Southbound',
-      location: 'I-280, Exit 12, San Jose, CA',
-      coordinates: { lat: 37.3382, lng: -121.8863 },
-      status: 'online',
-      hasIncident: false,
-      incidentType: null,
-      objectsCount: 2,
-      lastDetection: null,
-      crashDetails: null
-    },
-    {
-      id: 3,
-      name: 'Highway 880 - Eastbound',
-      location: 'Highway 880, Oakland, CA',
-      coordinates: { lat: 37.8044, lng: -122.2712 },
-      status: 'online',
-      hasIncident: true,
-      incidentType: 'fire',
-      objectsCount: 1,
-      lastDetection: new Date(Date.now() - 5 * 60 * 1000), // 5 minutes ago
-      crashDetails: {
-        type: 'Vehicle fire',
-        severity: 'High',
-        vehiclesInvolved: 1,
-        injuries: 'Driver evacuated safely',
-        description: 'Vehicle fire with visible flames and smoke'
-      }
-    },
-    {
-      id: 4,
-      name: 'Highway 5 - Northbound',
-      location: 'Highway 5, Sacramento, CA',
-      coordinates: { lat: 38.5816, lng: -121.4944 },
-      status: 'online',
-      hasIncident: false,
-      incidentType: null,
-      objectsCount: 3,
-      lastDetection: null,
-      crashDetails: null
-    },
-    {
-      id: 5,
-      name: 'Highway 101 - Southbound',
-      location: 'Highway 101, Palo Alto, CA',
-      coordinates: { lat: 37.4419, lng: -122.1430 },
-      status: 'offline',
-      hasIncident: false,
-      incidentType: null,
-      objectsCount: 0,
-      lastDetection: null,
-      crashDetails: null
-    },
-    {
-      id: 6,
-      name: 'I-80 - Westbound',
-      location: 'I-80, Berkeley, CA',
-      coordinates: { lat: 37.8715, lng: -122.2730 },
-      status: 'online',
-      hasIncident: true,
-      incidentType: 'breakdown',
-      objectsCount: 2,
-      lastDetection: new Date(Date.now() - 1 * 60 * 1000), // 1 minute ago
-      crashDetails: {
-        type: 'Vehicle breakdown with debris',
-        severity: 'Medium',
-        vehiclesInvolved: 1,
-        injuries: 'No injuries reported',
-        description: 'Vehicle breakdown with debris on roadway causing traffic backup'
-      }
-    },
-    {
-      id: 7,
-      name: 'Highway 17 - Northbound',
-      location: 'Highway 17, Santa Cruz, CA',
-      coordinates: { lat: 36.9741, lng: -122.0308 },
-      status: 'online',
-      hasIncident: false,
-      incidentType: null,
-      objectsCount: 1,
-      lastDetection: null,
-      crashDetails: null
-    },
-    {
-      id: 8,
-      name: 'I-580 - Eastbound',
-      location: 'I-580, Livermore, CA',
-      coordinates: { lat: 37.6819, lng: -121.7680 },
-      status: 'online',
-      hasIncident: true,
-      incidentType: 'fire',
-      objectsCount: 3,
-      lastDetection: new Date(Date.now() - 3 * 60 * 1000), // 3 minutes ago
-      crashDetails: {
-        type: 'Vehicle fire with smoke',
-        severity: 'High',
-        vehiclesInvolved: 1,
-        injuries: 'Driver evacuated safely',
-        description: 'Vehicle fire with visible flames and heavy smoke'
-      }
-    },
-    {
-      id: 9,
-      name: 'Highway 92 - Westbound',
-      location: 'Highway 92, Half Moon Bay, CA',
-      coordinates: { lat: 37.4636, lng: -122.4285 },
-      status: 'offline',
-      hasIncident: false,
-      incidentType: null,
-      objectsCount: 0,
-      lastDetection: null,
-      crashDetails: null
-    }
-  ];
+      return next;
+    });
+  };
 
   useEffect(() => {
     // Load real video data from API
     const loadVideos = async () => {
       try {
-        const response = await fetch('http://localhost:5001/api/videos');
+        const response = await fetch(`${API_BASE_URL}/api/videos`);
         const realVideos = await response.json();
-        
-        // Convert API data to component format
         const formattedVideos = realVideos.map(video => ({
           ...video,
           lastDetection: video.lastDetection ? new Date(video.lastDetection) : null
         }));
-        
         setVideos(formattedVideos);
-        setStats({
-          totalCameras: formattedVideos.length,
-          onlineCameras: formattedVideos.filter(v => v.status === 'online').length,
-          totalIncidents: formattedVideos.filter(v => v.hasIncident).length,
-          activeIncidents: formattedVideos.filter(v => v.hasIncident).length
-        });
       } catch (error) {
         console.error('Failed to load videos:', error);
-        // Fallback to mock data
-        setVideos(mockVideoFeeds);
-        setStats({
-          totalCameras: mockVideoFeeds.length,
-          onlineCameras: mockVideoFeeds.filter(v => v.status === 'online').length,
-          totalIncidents: 0,
-          activeIncidents: 0
-        });
+        setVideos([]);
       }
     };
-    
+
     loadVideos();
   }, []);
 
-  // Real-time detection using actual video analysis
-  // Use ref to track videos without causing re-renders
+  // Real-time detection against the backend analysis service.
+  // Use refs to track state without re-subscribing intervals.
   const videosRef = useRef(videos);
   videosRef.current = videos;
+  // Cameras that have already fired an alert this session
+  const alertedRef = useRef(new Set());
 
   useEffect(() => {
     if (!detectionActive) return;
+    if (videosRef.current.length === 0) return;
 
     const detectionIntervals = {};
 
     videosRef.current.forEach(video => {
       if (video.status !== 'online' || !video.filename) return;
 
-      // Only detect crashes for V videos (known crash videos)
+      // Only recorded incident-demo cameras have analysis data
       const isKnownCrashVideo = video.filename && video.filename.startsWith('V');
       if (!isKnownCrashVideo) return;
 
-      // Start detection for this video
       detectionIntervals[video.id] = setInterval(async () => {
         try {
-          // Get current video time (simulate video playback)
-          const currentTime = (Date.now() / 1000) % 10; // 10 second loop
-          
-          // Call backend for real-time detection
-          const response = await fetch(`http://localhost:5001/api/detect-crash/${video.filename}`, {
+          // Read the actual playback position of this camera's video element
+          // so detection stays in sync with the looping footage.
+          const el = document.querySelector(`video[data-cam-id="${video.id}"]`);
+          const currentTime = el ? el.currentTime : 0;
+
+          const response = await fetch(`${API_BASE_URL}/api/detect-crash/${video.filename}`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -224,252 +92,218 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
 
           if (response.ok) {
             const detection = await response.json();
-            
-            // Always update bounding boxes for real-time display
-            setVideos(prevVideos => 
-              prevVideos.map(v => 
-                v.id === video.id 
-                  ? { ...v, boundingBoxes: detection.boxes || [] }
-                  : v
-              )
-            );
-            
-            if (detection.has_crash && !video.hasIncident) {
-              // Check if there's already an active incident for this camera
-              const existingIncident = incidents.find(incident => 
-                incident.videoId === video.id && incident.status === 'active'
+
+            if (detection.has_crash) {
+              // Flag the incident while the impact is on screen
+              setVideos(prevVideos =>
+                prevVideos.map(v =>
+                  v.id === video.id && !v.hasIncident
+                    ? {
+                        ...v,
+                        hasIncident: true,
+                        incidentType: detection.crash_type,
+                        confidence: detection.confidence,
+                        threatLevel: detection.severity || 'High',
+                      }
+                    : v
+                )
               );
-              
-              if (!existingIncident) {
-                // Create incident
+
+              // Alert once per camera per session, not on every loop
+              if (!alertedRef.current.has(video.id)) {
+                alertedRef.current.add(video.id);
                 const newIncident = {
                   id: Date.now() + Math.random(),
                   videoId: video.id,
                   type: detection.crash_type || 'collision',
-                  severity: 'high',
+                  severity: detection.severity || 'High',
                   location: video.location,
                   description: `AI detected ${detection.crash_type || 'collision'} on ${video.name} at ${currentTime.toFixed(1)}s (confidence: ${Math.round(detection.confidence * 100)}%)`,
                   timestamp: new Date(),
                   status: 'active',
                   confidence: detection.confidence
                 };
-
                 setIncidents(prev => [newIncident, ...prev]);
                 onIncidentDetected?.(newIncident);
-
-                // Update video state with incident
-                setVideos(prevVideos => 
-                  prevVideos.map(v => 
-                    v.id === video.id 
-                      ? { ...v, hasIncident: true, incidentType: detection.crash_type, confidence: detection.confidence }
-                      : v
-                  )
-                );
               }
+            } else {
+              // Footage looped back to before the impact - clear the incident overlay
+              setVideos(prevVideos =>
+                prevVideos.map(v =>
+                  v.id === video.id && v.hasIncident
+                    ? { ...v, hasIncident: false, incidentType: null, confidence: null, threatLevel: null }
+                    : v
+                )
+              );
             }
           }
         } catch (error) {
           console.error(`Detection error for ${video.filename}:`, error);
         }
-      }, 500); // Check every 500ms for more responsive detection
+      }, 500);
     });
 
-    // Cleanup function
     return () => {
       Object.values(detectionIntervals).forEach(interval => clearInterval(interval));
     };
-  }, [detectionActive, onIncidentDetected]);
-
-  const startDetection = () => {
-    setDetectionActive(true);
-  };
-
-  const stopDetection = () => {
-    setDetectionActive(false);
-    // Reset all videos to normal state when stopping detection
-    setVideos(prevVideos => 
-      prevVideos.map(video => ({
-        ...video,
-        hasIncident: false,
-        incidentType: null,
-        lastDetection: null,
-        confidence: null,
-        boundingBoxes: []
-      }))
-    );
-    // Clear all incidents
-    setIncidents([]);
-  };
+  }, [detectionActive, onIncidentDetected, videos.length]);
 
   const dismissIncident = (incidentId) => {
-    // Find the incident to get the videoId
     const incidentToDismiss = incidents.find(incident => incident.id === incidentId);
-    
     setIncidents(prev => prev.filter(incident => incident.id !== incidentId));
-    
-    // Only reset the specific video that had the incident
     if (incidentToDismiss) {
-      setVideos(prev => prev.map(video => 
-        video.id === incidentToDismiss.videoId 
-          ? {
-              ...video,
-              hasIncident: false,
-              incidentType: null,
-              confidence: null,
-              boundingBoxes: []
-            }
-          : video
-      ));
+      setVideos(prevVideos =>
+        prevVideos.map(video =>
+          video.id === incidentToDismiss.videoId
+            ? { ...video, hasIncident: false, incidentType: null, confidence: null, threatLevel: null }
+            : video
+        )
+      );
     }
   };
 
   const handleLocationClick = (video, e) => {
-    e.stopPropagation(); // Prevent triggering the video click
+    e.stopPropagation();
     setSelectedCamera(video);
-    setShowLocationMap(true);
   };
 
-  const closeLocationMap = () => {
-    setShowLocationMap(false);
-    setSelectedCamera(null);
-  };
-
-  const getIncidentColor = (incidentType) => {
-    switch (incidentType) {
-      case 'collision': return 'bg-red-500';
-      case 'fire': return 'bg-orange-500';
-      case 'breakdown': return 'bg-yellow-500';
-      case 'debris': return 'bg-purple-500';
-      default: return 'bg-gray-500';
-    }
-  };
+  // Distinct states across the network, from the trailing ", XX" of each location
+  const stateCount = new Set(
+    videos
+      .map(v => (v.location || '').trim().match(/,\s*([A-Z]{2})$/)?.[1])
+      .filter(Boolean)
+  ).size;
 
   const getIncidentLabel = (incidentType) => {
     switch (incidentType) {
       case 'collision': return 'COLLISION';
-      case 'fire': return 'FIRE';
-      case 'breakdown': return 'BREAKDOWN';
+      case 'rollover': return 'COLLISION';
+      case 'fire': return 'VEHICLE FIRE';
       case 'debris': return 'DEBRIS';
-      default: return 'INCIDENT';
+      default: return 'COLLISION';
     }
   };
 
   return (
     <div className="space-y-6">
       {/* Header Controls */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <h2 className="text-2xl font-bold text-white">Surveillance Grid</h2>
-          <Badge variant={detectionActive ? "destructive" : "secondary"} className="animate-pulse">
-            {detectionActive ? 'DETECTING' : 'OFFLINE'}
-          </Badge>
-          {detectionActive && (
-            <div className="flex items-center text-sm text-green-400">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></div>
-              AI Detection Active - Watching for incidents...
-            </div>
-          )}
+      <div className="flex items-center justify-between border-b border-white/[0.06] pb-5">
+        <div className="flex items-center gap-5">
+          <h2 className="text-sm font-medium tracking-[0.35em] text-zinc-200 uppercase">
+            Surveillance Network
+          </h2>
+          <div className="flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/[0.06] px-3.5 py-1">
+            <div className="w-1 h-1 bg-cyan-400 rounded-full animate-pulse"></div>
+            <span className="text-[10px] font-mono uppercase tracking-[0.25em] text-cyan-300">
+              AI Detection Active
+            </span>
+          </div>
         </div>
-        <div className="flex space-x-2">
-          <Button
-            onClick={detectionActive ? stopDetection : startDetection}
-            variant={detectionActive ? "destructive" : "default"}
-            size="sm"
-          >
-            {detectionActive ? (
-              <>
-                <Square className="w-4 h-4 mr-2" />
-                Stop Detection
-              </>
-            ) : (
-              <>
-                <Play className="w-4 h-4 mr-2" />
-                Start Detection
-              </>
-            )}
-          </Button>
-        </div>
+        <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-zinc-600">
+          {videos.length} channels · {stateCount} states
+        </span>
       </div>
 
-      {/* Camera Status */}
-      <div className="flex items-center space-x-4 text-sm text-gray-300">
-        <span>Cameras {stats.onlineCameras} / {stats.totalCameras} online</span>
-        <span>•</span>
-        <span>Active Incidents: {incidents.filter(i => i.status === 'active').length}</span>
-        <span>•</span>
-        <span>Total Detections: {incidents.length}</span>
-      </div>
-
-      {/* Video Grid - 3x3 Layout */}
-      <div className="grid grid-cols-3 gap-4">
+      {/* Camera Grid */}
+      <div className="grid grid-cols-3 gap-5">
         {videos.map((video) => (
-          <Card 
-            key={video.id} 
-            className={`relative overflow-hidden transition-all duration-300 cursor-pointer hover:scale-105 hover:shadow-xl ${
-              video.hasIncident 
-                ? 'ring-2 ring-red-500/30 border-red-500/40 bg-red-900/10' 
-                : 'bg-gray-800/80 border-gray-700/50 hover:border-gray-600 hover:bg-gray-800'
+          <Card
+            key={video.id}
+            className={`group relative overflow-hidden rounded-2xl transition-all duration-300 cursor-pointer hover:-translate-y-0.5 ${
+              video.hasIncident
+                ? 'ring-1 ring-red-500/40 border-red-500/30 bg-red-950/10 shadow-[0_0_32px_rgba(239,68,68,0.12)]'
+                : 'bg-white/[0.03] border-white/[0.06] hover:border-cyan-400/25 hover:bg-white/[0.05] hover:shadow-[0_8px_40px_rgba(0,0,0,0.5)]'
             }`}
             onClick={() => onVideoClick?.(video)}
           >
-            <CardHeader className="pb-2">
+            <CardHeader className="py-2.5 px-3.5">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm text-white flex items-center">
+                <CardTitle className="flex items-center text-[13px] font-medium tracking-wide text-zinc-200 truncate">
                   {video.status === 'online' ? (
-                    <Wifi className="w-4 h-4 mr-2 text-green-400" />
+                    <Wifi className="w-3.5 h-3.5 mr-2 shrink-0 text-emerald-400/70" />
                   ) : (
-                    <WifiOff className="w-4 h-4 mr-2 text-red-400" />
+                    <WifiOff className="w-3.5 h-3.5 mr-2 shrink-0 text-red-400/70" />
                   )}
-                  {video.name}
+                  <span className="truncate">{video.name}</span>
                 </CardTitle>
-                <div className="flex items-center space-x-1">
-                  {video.hasIncident && (
-                    <Badge variant="destructive" className="animate-pulse">
-                      {getIncidentLabel(video.incidentType)}
-                    </Badge>
-                  )}
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
-                    className="text-gray-400 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                <div className="flex items-center shrink-0">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0 text-zinc-600 hover:text-zinc-200 hover:bg-white/[0.06] transition-colors"
                     onClick={(e) => handleLocationClick(video, e)}
                     title="View location on map"
                   >
-                    <MapPin className="w-4 h-4" />
+                    <MapPin className="w-3.5 h-3.5" />
                   </Button>
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
-                    className="text-gray-400 hover:text-blue-500 hover:bg-blue-500/10 transition-colors"
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0 text-zinc-600 hover:text-zinc-200 hover:bg-white/[0.06] transition-colors"
                     title="View details"
                   >
-                    <Eye className="w-4 h-4" />
+                    <Eye className="w-3.5 h-3.5" />
                   </Button>
                 </div>
               </div>
             </CardHeader>
-            
+
             <CardContent className="p-0">
-              {/* Video Player - Clean, no blur */}
-              <div className="relative bg-black h-48 flex items-center justify-center overflow-hidden">
-                {video.status === 'online' && video.filename ? (
-                  <video
+              {/* Video Player - 16:9 */}
+              <div className="relative bg-black aspect-video flex items-center justify-center overflow-hidden">
+                {video.isLive && video.streamUrl ? (
+                  <LiveStreamPlayer
+                    src={video.streamUrl}
+                    tz={video.tz}
                     className="w-full h-full object-cover"
-                    muted
-                    loop
-                    autoPlay
-                    playsInline
-                  >
-                    <source src={`/Videos/${video.filename}`} type="video/mp4" />
-                    Your browser does not support the video tag.
-                  </video>
+                  />
+                ) : video.isLive && video.liveImageUrl ? (
+                  <LiveFeedImage
+                    url={video.liveImageUrl}
+                    alt={video.name}
+                    className="w-full h-full"
+                  />
+                ) : video.status === 'online' && video.filename ? (
+                  <>
+                    <video
+                      data-cam-id={video.id}
+                      className="w-full h-full object-cover"
+                      muted
+                      loop
+                      playsInline
+                      preload="metadata"
+                      onLoadedMetadata={(e) => seekToPosterFrame(e.currentTarget)}
+                      onPlay={() => setPlayingIds(p => new Set(p).add(video.id))}
+                      onPause={() =>
+                        setPlayingIds(p => {
+                          const n = new Set(p);
+                          n.delete(video.id);
+                          return n;
+                        })
+                      }
+                    >
+                      <source src={`/Videos/${video.filename}`} type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                    <button
+                      type="button"
+                      onClick={(e) => toggleTilePlayback(video, e)}
+                      title={playingIds.has(video.id) ? 'Pause clip' : 'Play clip'}
+                      className="absolute bottom-2.5 left-2.5 rounded-full border border-white/15 bg-black/70 p-2 text-zinc-200 backdrop-blur-md transition-colors hover:text-white hover:border-cyan-400/40"
+                    >
+                      {playingIds.has(video.id) ? (
+                        <Pause className="h-3.5 w-3.5" />
+                      ) : (
+                        <Play className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  </>
                 ) : video.status === 'online' ? (
                   <div className="text-center">
                     <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mb-2">
                       <Play className="w-8 h-8 text-gray-400" />
                     </div>
                     <p className="text-gray-400 text-sm">Live Feed</p>
-                    <p className="text-green-400 text-xs">Objects: {video.objectsCount}</p>
                   </div>
                 ) : (
                   <div className="text-center">
@@ -479,68 +313,37 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
                 )}
 
                 {/* AI Analysis Indicator */}
-                {detectionActive && video.filename && video.filename.startsWith('V') && !video.hasIncident && (
-                  <div className="absolute top-2 right-2">
-                    <div className="bg-blue-500/80 text-white px-2 py-1 rounded text-xs flex items-center">
-                      <div className="w-2 h-2 bg-white rounded-full animate-pulse mr-1"></div>
-                      AI Analyzing...
-                    </div>
+                {detectionActive && video.status === 'online' && !video.hasIncident && (
+                  <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-black/60 backdrop-blur-md px-2.5 py-1">
+                    <div className="w-1 h-1 bg-emerald-400 rounded-full animate-pulse"></div>
+                    <span className="text-[9px] font-mono uppercase tracking-[0.25em] text-emerald-300">Analyzing</span>
                   </div>
                 )}
 
                 {/* Incident Overlay */}
                 {video.hasIncident && (
-                  <div className="absolute inset-0 bg-red-500/20 flex items-center justify-center">
+                  <div className="absolute inset-0 bg-red-500/20 flex items-center justify-center pointer-events-none">
                     <div className="text-center">
                       <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-2 animate-pulse" />
                       <p className="text-red-400 font-bold text-lg">
                         {getIncidentLabel(video.incidentType)}
                       </p>
-                      <p className="text-red-300 text-sm mt-1">
-                        Confidence: {Math.round((video.confidence || 0.95) * 100)}%
-                      </p>
                     </div>
                   </div>
                 )}
 
-                {/* Real-time Detection Boxes */}
-                {video.status === 'online' && detectionActive && (
-                  <div className="absolute inset-0 pointer-events-none">
-                    {video.boundingBoxes && video.boundingBoxes.map((box, i) => (
-                      <div
-                        key={i}
-                        className={`absolute border-2 ${
-                          box.is_crash 
-                            ? 'border-red-500 bg-red-500/30 animate-pulse' 
-                            : 'border-green-400 bg-green-400/20'
-                        }`}
-                        style={{
-                          left: `${box.x1}px`,
-                          top: `${box.y1}px`,
-                          width: `${box.x2 - box.x1}px`,
-                          height: `${box.y2 - box.y1}px`,
-                        }}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {/* Objects Count Overlay */}
-                <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs">
-                  Objects: {video.objectsCount}
-                </div>
               </div>
 
               {/* Video Info */}
-              <div className="p-3 bg-gray-800">
-                <p className="text-gray-300 text-xs mb-1">{video.location}</p>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-gray-400">
-                    Objects: {video.objectsCount}
+              <div className="p-3.5 border-t border-white/[0.04]">
+                <p className="text-zinc-400 text-xs mb-1.5 truncate">{video.location}</p>
+                <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-[0.2em]">
+                  <span className={video.isLive ? 'text-red-400/90' : 'text-cyan-400/80'}>
+                    {video.isLive ? 'Live feed' : 'Recorded feed'}
                   </span>
                   {video.lastDetection && (
-                    <span className="text-yellow-400">
-                      Last: {video.lastDetection.toLocaleTimeString()}
+                    <span className="text-amber-300/70 tabular-nums">
+                      {video.lastDetection.toLocaleTimeString()}
                     </span>
                   )}
                 </div>
@@ -550,62 +353,51 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
         ))}
       </div>
 
-      {/* Recent Incidents Sidebar */}
+      {/* Active Incidents */}
       {incidents.length > 0 && (
-        <div className="mt-8">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold text-white">Recent Incidents</h3>
-            <Badge variant="destructive" className="animate-pulse">
-              {incidents.length} Active
-            </Badge>
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 border-b border-white/[0.06] pb-4">
+            <AlertTriangle className="w-4 h-4 text-red-400" />
+            <h3 className="text-sm font-medium tracking-[0.3em] text-zinc-200 uppercase">
+              Active Incidents
+            </h3>
+            <Badge variant="destructive" className="animate-pulse">{incidents.length}</Badge>
           </div>
-          <div className="space-y-4">
-            {incidents.slice(0, 5).map((incident) => (
-              <Card key={incident.id} className="bg-gray-800/90 border-gray-700/50 hover:bg-gray-800 transition-all duration-200 shadow-lg">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {incidents.map((incident) => (
+              <Card key={incident.id} className="bg-white/[0.03] border-white/[0.08] rounded-xl">
                 <CardContent className="p-5">
-                  <div className="space-y-4">
-                    {/* Header */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <Badge variant="destructive" className="animate-pulse bg-red-600 text-white font-semibold">
-                          {incident.type?.toUpperCase() || 'INCIDENT'}
-                        </Badge>
-                        <span className="text-gray-300 text-sm font-medium">
-                          {incident.timestamp.toLocaleTimeString()}
-                        </span>
-                      </div>
-                      <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                    </div>
-                    
-                    {/* Description */}
-                    <div className="space-y-2">
-                      <p className="text-white text-sm leading-relaxed font-medium">
-                        {incident.description}
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <p className="text-red-400 font-semibold text-sm uppercase tracking-wide">
+                        {getIncidentLabel(incident.type)}
                       </p>
-                      <p className="text-gray-400 text-xs flex items-center">
-                        <MapPin className="w-3 h-3 mr-1" />
-                        {incident.location}
+                      <p className="text-zinc-400 text-xs mt-1">{incident.location}</p>
+                      <p className="text-zinc-600 text-[10px] font-mono mt-1 tabular-nums">
+                        {incident.timestamp.toLocaleTimeString()}
                       </p>
                     </div>
-                    
-                    {/* Action Buttons */}
-                    <div className="flex space-x-3 pt-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => dismissIncident(incident.id)}
-                        className="flex-1 text-gray-300 border-gray-600 hover:bg-gray-700 hover:text-white transition-colors"
-                      >
-                        Dismiss
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium transition-colors"
-                      >
-                        Alert Security
-                      </Button>
-                    </div>
+                    <Badge variant="destructive">{incident.severity}</Badge>
+                  </div>
+                  <div className="flex space-x-3 pt-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => dismissIncident(incident.id)}
+                      className="flex-1 bg-white text-black border-gray-300 hover:bg-zinc-200 hover:text-black transition-colors"
+                    >
+                      Dismiss
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        const cam = videos.find(v => v.id === incident.videoId);
+                        if (cam) onVideoClick?.(cam);
+                      }}
+                      className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      View Camera
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -614,11 +406,11 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
         </div>
       )}
 
-      {/* Location Map Modal */}
-      {showLocationMap && selectedCamera && (
-        <CameraLocationMap 
-          camera={selectedCamera} 
-          onClose={closeLocationMap} 
+      {/* Camera Location Map Modal */}
+      {selectedCamera && (
+        <CameraLocationMap
+          camera={selectedCamera}
+          onClose={() => setSelectedCamera(null)}
         />
       )}
     </div>

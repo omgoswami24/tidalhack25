@@ -6,7 +6,7 @@
 // 4. Create credentials > API Key
 // 5. Replace 'YOUR_API_KEY_HERE' with your actual API key
 
-export const GOOGLE_MAPS_API_KEY = 'AIzaSyAlEeRnIhuWWtzDYCybVSvIMF9O9NMbygs';
+export const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'YOUR_API_KEY_HERE';
 
 // Fallback: If no API key is provided, we'll use a static map image
 export const getStaticMapUrl = (lat, lng, zoom = 15) => {

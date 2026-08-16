@@ -1,0 +1,9 @@
+# Dependencies for the Vercel serverless API (api/index.py).
+# Deliberately slim: the live endpoints need only Flask, CORS, dotenv and
+# Twilio. OpenCV/boto3/google-generativeai are imported optionally by
+# simple_app.py and are omitted here to stay well inside the bundle size
+# limit. The full local/dev set stays in backend/requirements.txt.
+flask
+flask-cors
+python-dotenv
+twilio

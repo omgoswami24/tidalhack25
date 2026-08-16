@@ -1,30 +1,30 @@
 import os
-import base64
 import json
-import io
 import time
 from datetime import datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
-import numpy as np
-from PIL import Image
-import boto3
-import google.generativeai as genai
-from crash_detector import CrashDetector
 from load_videos import get_video_data
 from twilio_voice_service import twilio_voice_service
 from real_crash_detector import real_crash_detector
 
-# Load environment variables
-load_dotenv('safesight.env')
+# Resolve config next to this file, not relative to the working directory, so
+# the app behaves the same under `python simple_app.py`, gunicorn, and a
+# serverless handler (where the CWD is not the backend directory).
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(BASE_DIR, 'safesight.env'))
 
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app)
 
-# Configure AWS services
+# boto3, google-generativeai, OpenCV and Pillow are optional. None of the live
+# endpoints (/api/videos, /api/detect-crash, /api/security-alert, /api/health)
+# use them, and leaving them mandatory would push the serverless bundle past
+# its size limit for no benefit. They are imported only to report capability.
 try:
+    import boto3
     aws_session = boto3.Session(
         aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
         aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
@@ -38,17 +38,14 @@ except Exception as e:
     print(f"AWS not available: {e}")
     AWS_AVAILABLE = False
 
-# Configure Google Gemini
 try:
+    import google.generativeai as genai
     genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
     gemini_model = genai.GenerativeModel('gemini-1.5-pro')
     GEMINI_AVAILABLE = True
 except Exception as e:
     print(f"Gemini not available: {e}")
     GEMINI_AVAILABLE = False
-
-# Initialize crash detector
-crash_detector = CrashDetector()
 
 # Load real video data
 real_videos = get_video_data()

@@ -1,0 +1,326 @@
+[
+  {
+    "id": 1,
+    "name": "I-80 @ Ashby Ave",
+    "location": "I-80 Eastbound, Berkeley, CA",
+    "status": "online",
+    "hasIncident": false,
+    "incidentType": null,
+    "objectsCount": 0,
+    "lastDetection": null,
+    "crashDetails": null,
+    "isLive": true,
+    "streamUrl": "https://wzmedia.dot.ca.gov/D4/E80_JWO_ASHBY_Av.stream/playlist.m3u8",
+    "coordinates": {
+      "lat": 37.84672,
+      "lng": -122.29806
+    },
+    "processingResult": {
+      "source": "Caltrans District 4 public live stream"
+    },
+    "tz": "America/Los_Angeles"
+  },
+  {
+    "id": 2,
+    "name": "I-80 @ US-101 Junction",
+    "location": "I-80 Eastbound, San Francisco, CA",
+    "status": "online",
+    "hasIncident": false,
+    "incidentType": null,
+    "objectsCount": 0,
+    "lastDetection": null,
+    "crashDetails": null,
+    "isLive": true,
+    "streamUrl": "https://wzmedia.dot.ca.gov/D4/E80_at_JCT_101.stream/playlist.m3u8",
+    "coordinates": {
+      "lat": 37.77025,
+      "lng": -122.40554
+    },
+    "processingResult": {
+      "source": "Caltrans District 4 public live stream"
+    },
+    "tz": "America/Los_Angeles"
+  },
+  {
+    "id": 3,
+    "name": "Bay Bridge @ SAS Tower",
+    "location": "I-80 Westbound, SF Bay Bridge, CA",
+    "status": "online",
+    "hasIncident": false,
+    "incidentType": null,
+    "objectsCount": 0,
+    "lastDetection": null,
+    "crashDetails": null,
+    "isLive": true,
+    "streamUrl": "https://wzmedia.dot.ca.gov/D4/W80_at_SAS_Tower.stream/playlist.m3u8",
+    "coordinates": {
+      "lat": 37.81526,
+      "lng": -122.35855
+    },
+    "processingResult": {
+      "source": "Caltrans District 4 public live stream"
+    },
+    "tz": "America/Los_Angeles"
+  },
+  {
+    "id": 4,
+    "name": "I-280 @ 6th St Offramp",
+    "location": "I-280 Northbound, San Francisco, CA",
+    "status": "online",
+    "hasIncident": false,
+    "incidentType": null,
+    "objectsCount": 0,
+    "lastDetection": null,
+    "crashDetails": null,
+    "isLive": true,
+    "streamUrl": "https://wzmedia.dot.ca.gov/D4/N280_at_6th.stream/playlist.m3u8",
+    "coordinates": {
+      "lat": 37.77145,
+      "lng": -122.3974
+    },
+    "processingResult": {
+      "source": "Caltrans District 4 public live stream (cctvStatusD04 feed)"
+    },
+    "tz": "America/Los_Angeles"
+  },
+  {
+    "id": 5,
+    "name": "I-880 @ SR-84 Junction",
+    "location": "I-880 Southbound, Fremont, CA",
+    "status": "online",
+    "hasIncident": false,
+    "incidentType": null,
+    "objectsCount": 0,
+    "lastDetection": null,
+    "crashDetails": null,
+    "isLive": true,
+    "streamUrl": "https://wzmedia.dot.ca.gov/D4/S880_at_JCT_84.stream/playlist.m3u8",
+    "coordinates": {
+      "lat": 37.56423,
+      "lng": -122.03965
+    },
+    "processingResult": {
+      "source": "Caltrans District 4 public live stream (cctvStatusD04 feed)"
+    },
+    "tz": "America/Los_Angeles"
+  },
+  {
+    "name": "I-190 @ Exit 6",
+    "location": "I-190 Northbound, Buffalo, NY",
+    "status": "online",
+    "hasIncident": false,
+    "incidentType": null,
+    "objectsCount": 0,
+    "lastDetection": null,
+    "crashDetails": null,
+    "isLive": true,
+    "streamUrl": "https://s7.nysdot.skyvdn.com:443/rtplive/TA_163/playlist.m3u8",
+    "coordinates": {
+      "lat": 42.87732,
+      "lng": -78.87244
+    },
+    "processingResult": {
+      "source": "NY DOT public live stream"
+    },
+    "id": 6,
+    "tz": "America/New_York"
+  },
+  {
+    "name": "I-190 @ The Skyway",
+    "location": "I-190 @ Route 5, Buffalo, NY",
+    "status": "online",
+    "hasIncident": false,
+    "incidentType": null,
+    "objectsCount": 0,
+    "lastDetection": null,
+    "crashDetails": null,
+    "isLive": true,
+    "streamUrl": "https://s53.nysdot.skyvdn.com:443/rtplive/TA_142/playlist.m3u8",
+    "coordinates": {
+      "lat": 42.88001,
+      "lng": -78.87882
+    },
+    "processingResult": {
+      "source": "NY DOT public live stream"
+    },
+    "id": 7,
+    "tz": "America/New_York"
+  },
+  {
+    "name": "I-794 @ 2nd St",
+    "location": "I-794, Downtown Milwaukee, WI",
+    "status": "online",
+    "hasIncident": false,
+    "incidentType": null,
+    "objectsCount": 0,
+    "lastDetection": null,
+    "crashDetails": null,
+    "isLive": true,
+    "streamUrl": "https://cctv1.dot.wi.gov/rtplive/CCTV-40-0016/playlist.m3u8",
+    "coordinates": {
+      "lat": 43.035429,
+      "lng": -87.911682
+    },
+    "processingResult": {
+      "source": "WI DOT public live stream"
+    },
+    "id": 8,
+    "tz": "America/Chicago"
+  },
+  {
+    "name": "I-794 @ Lincoln Memorial",
+    "location": "I-794 Lakefront, Milwaukee, WI",
+    "status": "online",
+    "hasIncident": false,
+    "incidentType": null,
+    "objectsCount": 0,
+    "lastDetection": null,
+    "crashDetails": null,
+    "isLive": true,
+    "streamUrl": "https://cctv1.dot.wi.gov/rtplive/CCTV-40-0097/playlist.m3u8",
+    "coordinates": {
+      "lat": 43.03592,
+      "lng": -87.90037
+    },
+    "processingResult": {
+      "source": "WI DOT public live stream"
+    },
+    "id": 9,
+    "tz": "America/Chicago"
+  },
+  {
+    "name": "Casino Center Blvd",
+    "location": "Casino Center Blvd, Las Vegas, NV",
+    "status": "online",
+    "hasIncident": false,
+    "incidentType": null,
+    "objectsCount": 0,
+    "lastDetection": null,
+    "crashDetails": null,
+    "isLive": true,
+    "streamUrl": "https://d1wse3.its.nv.gov:443/vegasxcd03/d84c424f-d6bb-44df-9c77-5fb45dcb5caf_lvflirxcd03_public.stream/playlist.m3u8",
+    "coordinates": {
+      "lat": 36.17195,
+      "lng": -115.14314
+    },
+    "processingResult": {
+      "source": "NV DOT public live stream"
+    },
+    "id": 10,
+    "tz": "America/Los_Angeles"
+  },
+  {
+    "name": "I-11 @ Las Vegas Blvd",
+    "location": "I-11 @ LV Blvd, Las Vegas, NV",
+    "status": "online",
+    "hasIncident": false,
+    "incidentType": null,
+    "objectsCount": 0,
+    "lastDetection": null,
+    "crashDetails": null,
+    "isLive": true,
+    "streamUrl": "https://d1wse2.its.nv.gov:443/vegasxcd02/17cbe2ec-3cc3-4956-b409-63174ab06b3e_lvflirxcd03_public.stream/playlist.m3u8",
+    "coordinates": {
+      "lat": 36.17236,
+      "lng": -115.13521
+    },
+    "processingResult": {
+      "source": "NV DOT public live stream"
+    },
+    "id": 11,
+    "tz": "America/Los_Angeles"
+  },
+  {
+    "name": "I-10 @ Orleans Ave",
+    "location": "I-10, New Orleans, LA",
+    "status": "online",
+    "hasIncident": false,
+    "incidentType": null,
+    "objectsCount": 0,
+    "lastDetection": null,
+    "crashDetails": null,
+    "isLive": true,
+    "streamUrl": "https://ITSStreamingNO.dotd.la.gov/public/nor-cam-113.streams/playlist.m3u8",
+    "coordinates": {
+      "lat": 29.9634311897707,
+      "lng": -90.0737700810955
+    },
+    "processingResult": {
+      "source": "LA DOT public live stream"
+    },
+    "id": 12,
+    "tz": "America/Chicago"
+  },
+  {
+    "name": "Underpass Cam 8 - Gregson St",
+    "location": "Gregson St Railroad Bridge, Durham, NC",
+    "filename": "V1.mp4",
+    "coordinates": {
+      "lat": 36.00281,
+      "lng": -78.90136
+    },
+    "videoProperties": {
+      "duration": 8.5,
+      "fps": 30,
+      "resolution": "640x360"
+    },
+    "processingResult": {
+      "source": "11foot8.com bridge camera (CC BY 3.0, yovo68)"
+    },
+    "status": "online",
+    "hasIncident": false,
+    "incidentType": null,
+    "objectsCount": 0,
+    "lastDetection": null,
+    "crashDetails": null,
+    "id": 13
+  },
+  {
+    "name": "Intersection Cam 12 - Vermont Ave",
+    "location": "S Vermont Ave, Los Angeles, CA",
+    "filename": "V3.mp4",
+    "coordinates": {
+      "lat": 34.043,
+      "lng": -118.2915
+    },
+    "videoProperties": {
+      "duration": 12,
+      "fps": 30,
+      "resolution": "640x360"
+    },
+    "processingResult": {
+      "source": "LAPD-released CCTV footage (public domain)"
+    },
+    "status": "online",
+    "hasIncident": false,
+    "incidentType": null,
+    "objectsCount": 0,
+    "lastDetection": null,
+    "crashDetails": null,
+    "id": 14
+  },
+  {
+    "name": "Freeway Cam 6 - US 41/45 @ Lannon Rd",
+    "location": "US 41/45 @ Lannon Rd, Germantown, WI",
+    "filename": "V5.mp4",
+    "coordinates": {
+      "lat": 43.21384,
+      "lng": -88.14794
+    },
+    "videoProperties": {
+      "duration": 32,
+      "fps": 30,
+      "resolution": "640x480"
+    },
+    "processingResult": {
+      "source": "WisDOT freeway camera via madison.com (CC BY)"
+    },
+    "status": "online",
+    "hasIncident": false,
+    "incidentType": null,
+    "objectsCount": 0,
+    "lastDetection": null,
+    "crashDetails": null,
+    "id": 15
+  }
+]

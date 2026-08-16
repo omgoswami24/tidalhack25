@@ -1,208 +1,150 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { X, Play, Pause, MapPin, Activity, Phone } from 'lucide-react';
 import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { X, Play, Pause, MapPin, Activity } from 'lucide-react';
 import { useToast } from '../hooks/use-toast';
-import { GOOGLE_MAPS_API_KEY } from '../config/maps';
+import { API_BASE_URL } from '../config/api';
+import { seekToPosterFrame } from '../config/video';
+import LiveFeedImage from './LiveFeedImage';
+import LiveStreamPlayer from './LiveStreamPlayer';
 
 const VideoDetailView = ({ video, onClose }) => {
+  // Recorded demo clips start paused so they can be played on cue during a demo.
+  const isRecorded = !video?.isLive && Boolean(video?.filename);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const { toast } = useToast();
   const [incidentDetails, setIncidentDetails] = useState(null);
   const videoRef = useRef(null);
-  const mapRef = useRef(null);
+  // Live detection result for recorded clips, polled against playback position
+  const [detection, setDetection] = useState(null);
+  // Recorded clips loop, so only auto-dial once per time the modal is open
+  const autoCalledRef = useRef(false);
 
-  // Randomize locations for each camera
-  const getRandomLocation = (cameraName) => {
-    const locations = [
-      { lat: 37.7749, lng: -122.4194, address: 'Highway 101, Mile 45.2, San Francisco, CA' },
-      { lat: 37.3382, lng: -121.8863, address: 'I-280, Exit 12, San Jose, CA' },
-      { lat: 37.8044, lng: -122.2712, address: 'Highway 880, Oakland, CA' },
-      { lat: 38.5816, lng: -121.4944, address: 'Highway 5, Sacramento, CA' },
-      { lat: 37.4419, lng: -122.1430, address: 'Highway 101, Palo Alto, CA' },
-      { lat: 37.8715, lng: -122.2730, address: 'I-80, Berkeley, CA' },
-      { lat: 36.9741, lng: -122.0308, address: 'Highway 17, Santa Cruz, CA' },
-      { lat: 37.6819, lng: -121.7680, address: 'I-580, Livermore, CA' },
-      { lat: 37.4636, lng: -122.4285, address: 'Highway 92, Half Moon Bay, CA' },
-      { lat: 37.7849, lng: -122.4094, address: 'Highway 101, Mile 46.2, San Francisco, CA' },
-      { lat: 37.3482, lng: -121.8963, address: 'I-280, Exit 13, San Jose, CA' },
-      { lat: 37.8144, lng: -122.2812, address: 'Highway 880, Oakland, CA' },
-      { lat: 38.5916, lng: -121.5044, address: 'Highway 5, Sacramento, CA' },
-      { lat: 37.4519, lng: -122.1530, address: 'Highway 101, Palo Alto, CA' },
-      { lat: 37.8815, lng: -122.2830, address: 'I-80, Berkeley, CA' }
-    ];
-    
-    // Use camera name to get consistent location for same camera
-    const hash = cameraName.split('').reduce((a, b) => {
-      a = ((a << 5) - a) + b.charCodeAt(0);
-      return a & a;
-    }, 0);
-    return locations[Math.abs(hash) % locations.length];
-  };
+  const location = video.coordinates
+    ? { lat: video.coordinates.lat, lng: video.coordinates.lng, address: video.location }
+    : { lat: 30.2672, lng: -97.7431, address: video.location };
 
-  // Get location data for current video - use randomized location
-  const location = getRandomLocation(video.name);
+  // Keyless Google Maps embed - works without an API key
+  const mapEmbedUrl = `https://maps.google.com/maps?q=${location.lat},${location.lng}&z=15&output=embed`;
 
-  // Initialize Google Maps
-  useEffect(() => {
-    if (!mapRef.current) return;
-
-    // Load Google Maps script if not already loaded
-    if (!window.google) {
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMap`;
-      script.async = true;
-      script.defer = true;
-      
-      // Create a callback function
-      window.initMap = () => {
-        if (mapRef.current && location) {
-          const map = new window.google.maps.Map(mapRef.current, {
-            zoom: 14,
-            center: { lat: location.lat, lng: location.lng },
-            mapTypeId: 'roadmap',
-            styles: [
-              {
-                featureType: 'poi',
-                elementType: 'labels',
-                stylers: [{ visibility: 'off' }]
-              }
-            ]
-          });
-
-          // Add marker
-          new window.google.maps.Marker({
-            position: { lat: location.lat, lng: location.lng },
-            map: map,
-            animation: window.google.maps.Animation.DROP,
-            title: location.address
-          });
-        }
-      };
-      
-      document.head.appendChild(script);
-    } else {
-      // Map already loaded, create map directly
-      if (mapRef.current && location && window.google.maps) {
-        const map = new window.google.maps.Map(mapRef.current, {
-          zoom: 14,
-          center: { lat: location.lat, lng: location.lng },
-          mapTypeId: 'roadmap',
-          styles: [
-            {
-              featureType: 'poi',
-              elementType: 'labels',
-              stylers: [{ visibility: 'off' }]
-            }
-          ]
-        });
-
-        new window.google.maps.Marker({
-          position: { lat: location.lat, lng: location.lng },
-          map: map,
-          animation: window.google.maps.Animation.DROP,
-          title: location.address
-        });
-      }
-    }
-
-    return () => {
-      if (window.initMap) {
-        delete window.initMap;
-      }
-    };
-  }, [location]);
-
-  // Handle map click to open in Google Maps
   const handleMapClick = () => {
-    console.log('🗺️ Map clicked! Opening Google Maps...');
-    console.log('📍 Location:', location);
-    const mapsUrl = `https://www.google.com/maps?q=${location.lat},${location.lng}`;
-    console.log('🔗 Maps URL:', mapsUrl);
-    window.open(mapsUrl, '_blank');
+    window.open(`https://www.google.com/maps?q=${location.lat},${location.lng}`, '_blank');
   };
 
-  // Handle security alert
-  const handleSecurityAlert = async () => {
+  // Places the emergency call. `overrides` lets the automatic detection path
+  // describe the crash it just found instead of the current card state.
+  const placeEmergencyCall = async (overrides = {}, { automatic = false } = {}) => {
     try {
       const alertData = {
-        type: incidentDetails?.type || 'Traffic Incident',
+        type: overrides.type || incidentDetails?.type || 'Traffic Incident',
         location: video.location,
-        severity: incidentDetails?.severity || 'High',
-        description: incidentDetails?.description || `Incident detected on ${video.name}`,
-        timestamp: new Date().toISOString()
+        severity: overrides.severity || incidentDetails?.severity || 'High',
+        description:
+          overrides.description ||
+          incidentDetails?.description ||
+          `Incident detected on ${video.name}`,
+        timestamp: new Date().toISOString(),
       };
 
-      const response = await fetch('http://localhost:5001/api/security-alert', {
+      const response = await fetch(`${API_BASE_URL}/api/security-alert`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(alertData)
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(alertData),
       });
 
       const result = await response.json();
-      
+
       if (result.success) {
         toast({
-          title: "📞 Emergency Call Initiated!",
-          description: `Calling ${result.to_number} - Status: ${result.status}`,
-          variant: "default",
+          title: automatic ? 'Collision Detected — Calling Now' : 'Emergency Call Initiated',
+          description: `Calling ${result.to_number} — Status: ${result.status}`,
+          className:
+            'border border-red-500/30 bg-zinc-950/90 text-red-100 backdrop-blur-xl shadow-[0_0_40px_rgba(239,68,68,0.15)]',
         });
       } else {
         toast({
-          title: "❌ Call Failed",
-          description: result.error || "Failed to initiate emergency call",
-          variant: "destructive",
+          title: 'Call Failed',
+          description: result.error || 'Failed to initiate emergency call',
+          variant: 'destructive',
         });
       }
     } catch (error) {
       console.error('Error sending security alert:', error);
       toast({
-        title: "❌ Error",
-        description: "Failed to initiate emergency call. Please try again.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to initiate emergency call. Please try again.',
+        variant: 'destructive',
       });
     }
   };
 
-  // Initialize incident details
+  const handleSecurityAlert = () => placeEmergencyCall();
+
   useEffect(() => {
-    // Generate incident details based on video
-    const generateIncidentDetails = (video) => {
-      return {
-        type: video.incidentType || 'collision',
-        severity: 'Critical',
-        threatLevel: 'High', // Always set to High
-        description: video.incidentType 
-          ? `Traffic collision detected on ${video.name}. Multiple vehicles involved. Emergency services have been notified.`
-          : 'Traffic monitoring in progress. No incidents detected.',
-        timestamp: new Date().toISOString(),
-        location: video.location,
-        confidence: video.confidence || 0.95
-      };
-    };
+    // Threat level comes from the detection system's per-crash assessment;
+    // cameras with no active incident report None. For recorded clips the
+    // assessment follows playback, so `detection` wins over the stale snapshot.
+    const active = isRecorded ? Boolean(detection) : Boolean(video.hasIncident);
+    const type = (isRecorded ? detection?.crash_type : video.incidentType) || 'collision';
+    const severity =
+      (isRecorded ? detection?.severity : video.threatLevel) || 'High';
 
-    setIncidentDetails(generateIncidentDetails(video));
-  }, [video]);
+    setIncidentDetails({
+      type,
+      severity: active ? severity : 'None',
+      threatLevel: active ? severity : 'None',
+      description: active
+        ? `Traffic collision detected on ${video.name}. Emergency services have been notified.`
+        : 'Traffic monitoring in progress. No incidents detected.',
+      timestamp: new Date().toISOString(),
+      location: video.location,
+      confidence: (isRecorded ? detection?.confidence : video.confidence) || 0.95,
+    });
+  }, [video, detection, isRecorded]);
 
-  // Video controls
+  // Recorded clips: follow playback position and auto-dial on the first impact.
+  useEffect(() => {
+    if (!isRecorded || !isPlaying) return;
+
+    const interval = setInterval(async () => {
+      const el = videoRef.current;
+      if (!el) return;
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/detect-crash/${video.filename}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currentTime: el.currentTime }),
+        });
+        if (!response.ok) return;
+
+        const result = await response.json();
+        setDetection(result.has_crash ? result : null);
+
+        if (result.has_crash && !autoCalledRef.current) {
+          autoCalledRef.current = true;
+          placeEmergencyCall(
+            {
+              type: result.crash_type || 'collision',
+              severity: result.severity || 'High',
+              description: `AI detected ${result.crash_type || 'collision'} on ${video.name} at ${el.currentTime.toFixed(1)}s (confidence: ${Math.round((result.confidence || 0.95) * 100)}%)`,
+            },
+            { automatic: true }
+          );
+        }
+      } catch (error) {
+        console.error(`Detection error for ${video.filename}:`, error);
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [isRecorded, isPlaying, video.filename]);
+
   const togglePlayPause = () => {
     if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
-        videoRef.current.play();
-      }
+      if (isPlaying) videoRef.current.pause();
+      else videoRef.current.play();
       setIsPlaying(!isPlaying);
-    }
-  };
-
-  const handleTimeUpdate = () => {
-    if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime);
     }
   };
 
@@ -217,195 +159,190 @@ const VideoDetailView = ({ video, onClose }) => {
       case 'High': return 'text-red-500';
       case 'Medium': return 'text-yellow-500';
       case 'Low': return 'text-green-500';
-      default: return 'text-gray-500';
+      default: return 'text-zinc-500';
+    }
+  };
+
+  const getThreatCardClasses = (threatLevel) => {
+    switch (threatLevel) {
+      case 'High': return 'bg-red-600/20 border-red-500/30';
+      case 'Medium': return 'bg-yellow-600/20 border-yellow-500/30';
+      case 'Low': return 'bg-green-600/20 border-green-500/30';
+      default: return 'bg-white/[0.04] border-white/10';
     }
   };
 
   if (!video) return null;
 
+  const threatLevel = incidentDetails?.threatLevel || 'None';
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
-      <div className="bg-gray-900 rounded-lg w-full max-w-7xl h-[95vh] flex flex-col shadow-2xl border border-gray-700">
+    <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="relative w-full max-w-6xl max-h-[92vh] overflow-hidden rounded-2xl border border-white/[0.08] bg-zinc-950 shadow-[0_24px_80px_rgba(0,0,0,0.7)] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-700/50 flex-shrink-0">
-          <div>
-            <h2 className="text-2xl font-bold text-white">Hello Oculon, here are the details of your detection.</h2>
-            <p className="text-gray-200 mt-1 font-medium">{video.name} - {video.location}</p>
+        <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-6 py-4">
+          <div className="min-w-0">
+            <h2 className="text-lg font-medium tracking-wide text-white truncate">{video.name}</h2>
+            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-500">
+              <MapPin className="h-3 w-3 shrink-0" />
+              <span className="truncate">{video.location}</span>
+            </p>
           </div>
-          <Button onClick={onClose} variant="ghost" size="sm" className="text-gray-400 hover:text-white hover:bg-gray-800/50 rounded-full">
-            <X className="w-6 h-6" />
-          </Button>
+          <div className="flex items-center gap-3 shrink-0">
+            {video.hasIncident && (
+              <span className="rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-[10px] font-mono uppercase tracking-[0.25em] text-red-300 animate-pulse">
+                Incident
+              </span>
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onClose}
+              className="h-8 w-8 p-0 text-zinc-500 hover:text-white hover:bg-white/[0.06]"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
 
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden">
-          <div className="p-6">
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              {/* Live Camera Feed */}
-              <div className="xl:col-span-1">
-                <Card className="bg-gray-800/80 border-gray-700/50 backdrop-blur-sm">
-                  <CardHeader className="pb-4">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-white text-xl flex items-center">
-                        <Activity className="w-6 h-6 mr-3" />
-                        Live Camera Feed
-                      </CardTitle>
-                      <div className="flex items-center space-x-2">
-                        <Badge variant={video.status === 'online' ? 'default' : 'secondary'} className="bg-green-600 text-white">
-                          {video.status === 'online' ? 'Real-time' : 'OFFLINE'}
-                        </Badge>
-                        {video.hasIncident && (
-                          <Badge variant="destructive" className="animate-pulse bg-red-600">
-                            INCIDENT DETECTED
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <div className="relative bg-black rounded-lg h-80 overflow-hidden">
-                      <video
-                        ref={videoRef}
-                        src={`/Videos/${video.filename}`}
-                        className="w-full h-full object-cover"
-                        onTimeUpdate={handleTimeUpdate}
-                        onPlay={() => setIsPlaying(true)}
-                        onPause={() => setIsPlaying(false)}
-                      />
-                      
-                      {/* Video Controls Overlay */}
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              onClick={togglePlayPause}
-                              size="sm"
-                              variant="ghost"
-                              className="text-white hover:bg-white/20"
-                            >
-                              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                            </Button>
-                            <span className="text-white text-sm font-mono">
-                              {formatTime(currentTime)}
-                            </span>
-                          </div>
-                          <div className="text-white text-sm">
-                            {video.filename}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Feed */}
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+              <div className="flex items-center justify-between border-b border-white/[0.05] px-4 py-2.5">
+                <div className="flex items-center gap-2">
+                  <Activity className="h-3.5 w-3.5 text-cyan-400/70" />
+                  <span className="text-xs font-mono uppercase tracking-[0.2em] text-zinc-400">
+                    {video.isLive ? 'Live Feed' : 'Recorded Feed'}
+                  </span>
+                </div>
+                <span className={`text-[10px] font-mono uppercase tracking-[0.2em] ${video.status === 'online' ? 'text-emerald-400/80' : 'text-red-400/80'}`}>
+                  {video.status === 'online' ? 'Online' : 'Offline'}
+                </span>
               </div>
-
-              {/* Map Section */}
-              <div className="xl:col-span-1">
-                <Card className="bg-gray-800/80 border-gray-700/50 backdrop-blur-sm">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="text-white text-xl flex items-center">
-                      <MapPin className="w-6 h-6 mr-3" />
-                      Location Map
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4">
-                    <div className="relative h-80 rounded-lg overflow-hidden bg-gray-700">
-                      {/* Google Maps container */}
-                      <div 
-                        ref={mapRef}
-                        className="w-full h-full cursor-pointer"
-                        title="Click to open in Google Maps"
-                        onClick={handleMapClick}
-                      >
-                        {/* Fallback if Google Maps doesn't load */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-green-400 flex items-center justify-center">
-                          <div className="text-center">
-                            <MapPin className="w-12 h-12 mx-auto mb-2 text-white animate-pulse" />
-                            <p className="text-white font-semibold">Loading map...</p>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      {/* Location info overlay */}
-                      <div className="absolute top-3 left-3 bg-black/80 text-white px-3 py-2 rounded-lg text-sm backdrop-blur-sm pointer-events-none">
-                        <div className="font-semibold">Camera Location</div>
-                        <div className="text-xs text-gray-300">{location.address}</div>
-                      </div>
-                      
-                      {/* Coordinates */}
-                      <div className="absolute bottom-3 right-3 bg-red-600/90 text-white px-3 py-2 rounded-lg text-sm backdrop-blur-sm pointer-events-none">
-                        📍 {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
-                      </div>
-                      
-                      {/* Click instruction */}
-                      <div className="absolute top-3 right-3 bg-black/80 text-white px-3 py-2 rounded-lg text-sm backdrop-blur-sm cursor-pointer hover:bg-black/90 transition-colors pointer-events-auto">
-                        <div className="flex items-center">
-                          <MapPin className="w-4 h-4 mr-1" />
-                          Click to open in Google Maps
-                        </div>
+              <div className="relative aspect-video bg-black">
+                {video.isLive && video.streamUrl ? (
+                  <LiveStreamPlayer src={video.streamUrl} tz={video.tz} className="w-full h-full object-cover" />
+                ) : video.isLive && video.liveImageUrl ? (
+                  <LiveFeedImage url={video.liveImageUrl} alt={video.name} className="w-full h-full" />
+                ) : (
+                  <>
+                    <video
+                      ref={videoRef}
+                      src={`/Videos/${video.filename}`}
+                      className="w-full h-full object-cover"
+                      muted
+                      loop
+                      playsInline
+                      preload="metadata"
+                      onLoadedMetadata={(e) => seekToPosterFrame(e.currentTarget)}
+                      onTimeUpdate={() => videoRef.current && setCurrentTime(videoRef.current.currentTime)}
+                      onPlay={() => setIsPlaying(true)}
+                      onPause={() => setIsPlaying(false)}
+                    />
+                    <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/80 to-transparent px-4 pb-2.5 pt-8">
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={togglePlayPause}
+                          className="rounded-full bg-black/60 border border-white/10 p-2 text-zinc-300 hover:text-white transition-colors"
+                        >
+                          {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                        </button>
+                        <span className="font-mono text-xs tabular-nums text-zinc-400">{formatTime(currentTime)}</span>
                       </div>
                     </div>
-                    
-                    {/* Map action button */}
-                    <div className="mt-4 flex justify-center">
-                      <Button 
-                        onClick={handleMapClick}
-                        variant="outline"
-                        className="bg-blue-600/20 border-blue-500/30 text-blue-400 hover:bg-blue-600/30 hover:border-blue-400/50"
-                      >
-                        <MapPin className="w-4 h-4 mr-2" />
-                        Open in Google Maps
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                  </>
+                )}
               </div>
             </div>
 
-            {/* Key Information - Now in scrollable area */}
-            <div className="flex justify-center mt-6 pb-6">
-              <Card className="bg-gray-800/80 border-gray-700/50 w-full max-w-4xl">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-white text-lg text-center">Key Information</CardTitle>
-                </CardHeader>
-                <CardContent className="p-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Sentiment Card */}
-                    <div className="bg-blue-600/20 border border-blue-500/30 rounded-lg p-4 flex flex-col items-center justify-center backdrop-blur-sm">
-                      <div className="text-blue-400 font-bold text-lg mb-2">Neutral</div>
-                      <div className="text-gray-300 text-sm text-center">Sentiment</div>
-                    </div>
-                    
-                    {/* Threat Level Card */}
-                    <div className={`${getThreatColor(incidentDetails?.threatLevel || 'High').replace('text-', 'bg-').replace('-500', '-600/20')} border border-red-500/30 rounded-lg p-4 flex flex-col items-center justify-center backdrop-blur-sm`}>
-                      <div className={`${getThreatColor(incidentDetails?.threatLevel || 'High')} font-bold text-lg mb-2`}>
-                        {incidentDetails?.threatLevel || 'High'}
-                      </div>
-                      <div className="text-gray-300 text-sm text-center">Threat Level</div>
-                    </div>
-                    
-                    {/* Event Details Card */}
-                    <div className="bg-gray-700/60 border border-gray-600/30 rounded-lg p-4 backdrop-blur-sm">
-                      <div className="text-gray-300 text-xs mb-2">Event Details</div>
-                      <div className="text-white text-sm leading-relaxed">
-                        {incidentDetails?.description || 'Traffic monitoring in progress'}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Emergency Call Button */}
-                  {incidentDetails?.type && incidentDetails.type !== 'normal' && (
-                    <div className="mt-6 flex justify-center">
-                      <Button 
-                        onClick={handleSecurityAlert}
-                        className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 text-lg font-semibold"
-                      >
-                        📞 Call Emergency Services
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+            {/* Location Map */}
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden flex flex-col">
+              <div className="flex items-center gap-2 border-b border-white/[0.05] px-4 py-2.5">
+                <MapPin className="h-3.5 w-3.5 text-cyan-400/70" />
+                <span className="text-xs font-mono uppercase tracking-[0.2em] text-zinc-400">Location Map</span>
+              </div>
+              <div className="relative flex-1 min-h-[260px]">
+                <iframe
+                  src={mapEmbedUrl}
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0, position: 'absolute', inset: 0 }}
+                  allowFullScreen=""
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title={`Map of ${video.name}`}
+                />
+                <div className="pointer-events-none absolute bottom-3 right-3 rounded-lg bg-red-600/90 px-3 py-1.5 text-xs text-white backdrop-blur-sm">
+                  📍 {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
+                </div>
+              </div>
+              <div className="border-t border-white/[0.05] p-3">
+                <Button
+                  onClick={handleMapClick}
+                  variant="outline"
+                  className="w-full bg-blue-600/20 border-blue-500/30 text-blue-400 hover:bg-blue-600/30 hover:border-blue-400/50"
+                >
+                  <MapPin className="w-4 h-4 mr-2" />
+                  Open in Google Maps
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Key Information */}
+          <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
+            <h3 className="text-xs font-mono uppercase tracking-[0.3em] text-zinc-500 mb-4 text-center">
+              Key Information
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Threat Level Card */}
+              <div className={`${getThreatCardClasses(threatLevel)} border rounded-lg p-4 flex flex-col items-center justify-center backdrop-blur-sm`}>
+                <div className={`${getThreatColor(threatLevel)} font-bold text-lg mb-2`}>
+                  {threatLevel}
+                </div>
+                <div className="text-gray-300 text-sm text-center">Threat Level</div>
+              </div>
+
+              {/* Event Details Card */}
+              <div className="bg-white/[0.04] border border-white/10 rounded-lg p-4 backdrop-blur-sm">
+                <div className="text-zinc-500 text-xs mb-2">Event Details</div>
+                <div className="text-white text-sm leading-relaxed">
+                  {incidentDetails?.description || 'Traffic monitoring in progress'}
+                </div>
+              </div>
+            </div>
+
+            {/* Emergency dispatch: recorded clips dial automatically on impact,
+                live feeds are dispatched manually by the operator. */}
+            <div className="mt-5 flex justify-center">
+              {isRecorded ? (
+                <div
+                  className={`flex items-center gap-2 rounded-full border px-4 py-1.5 ${
+                    detection
+                      ? 'border-red-500/30 bg-red-500/10 text-red-300'
+                      : 'border-white/10 bg-white/[0.04] text-zinc-500'
+                  }`}
+                >
+                  <Phone className="h-3 w-3 shrink-0" />
+                  <span className="text-[10px] font-mono uppercase tracking-[0.25em]">
+                    {detection ? 'Emergency call placed' : 'Auto-dispatch armed'}
+                  </span>
+                </div>
+              ) : (
+                <Button
+                  onClick={handleSecurityAlert}
+                  className="bg-red-600 hover:bg-red-700 text-white px-8"
+                >
+                  <Phone className="w-4 h-4 mr-2" />
+                  Call Emergency Services
+                </Button>
+              )}
             </div>
           </div>
         </div>

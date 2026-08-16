@@ -9,6 +9,10 @@ module.exports = {
     './public/index.html',
   ],
   theme: {
+    fontFamily: {
+      sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+      mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+    },
     container: {
       center: true,
       padding: "2rem",

@@ -106,7 +106,6 @@ dist
 
 # Gatsby files
 .cache/
-public
 
 # Storybook build outputs
 .out
@@ -119,13 +118,14 @@ temp/
 # AWS
 .aws/
 
-# Video files
+# Video files (demo clips in frontend/public/Videos are kept)
 *.mp4
 *.avi
 *.mov
 *.mkv
 *.wmv
 *.flv
+!frontend/public/Videos/*.mp4
 
 # Model files
 *.pt
@@ -138,7 +138,11 @@ temp/
 data/
 datasets/
 *.csv
-*.json
 *.xml
 safesight.env
 setup-with-keys.sh
+
+# Local-only
+backend/Videos
+Treehacks2025-main/
+.vercel

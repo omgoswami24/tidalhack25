@@ -6,10 +6,16 @@ import json
 import os
 import random
 
+# Resolve the data file next to this module so it loads regardless of the
+# process working directory (dev server, gunicorn, or serverless handler).
+DATA_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         'processed_videos.json')
+
+
 def load_processed_videos():
     """Load processed video data from JSON file"""
     try:
-        with open('processed_videos.json', 'r') as f:
+        with open(DATA_FILE, 'r') as f:
             videos = json.load(f)
         return videos
     except FileNotFoundError:
@@ -34,19 +40,24 @@ def get_video_data():
             'objectsCount': video.get('objectsCount', 0),
             'lastDetection': video.get('lastDetection'),
             'crashDetails': video.get('crashDetails'),
-            'filename': video['filename'],
+            'filename': video.get('filename', ''),
+            'isLive': video.get('isLive', False),
+            'liveImageUrl': video.get('liveImageUrl'),
+            'streamUrl': video.get('streamUrl'),
+            'tz': video.get('tz'),
+            'coordinates': video.get('coordinates'),
             'videoProperties': video.get('videoProperties', {}),
             'processingResult': video.get('processingResult', {})
         }
         formatted_videos.append(formatted_video)
     
-    # Randomize the order of videos each time
-    random.shuffle(formatted_videos)
-    
+    # Recorded incident-demo cameras first, then live feeds
+    formatted_videos.sort(key=lambda v: (not v.get('filename'), v['id']))
+
     # Reassign IDs to maintain consistency with frontend expectations
     for i, video in enumerate(formatted_videos):
         video['id'] = i + 1
-    
+
     return formatted_videos
 
 if __name__ == "__main__":

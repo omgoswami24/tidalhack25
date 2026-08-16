@@ -3,58 +3,17 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { MapPin, ExternalLink, Navigation } from 'lucide-react';
-import { GOOGLE_MAPS_API_KEY } from '../config/maps';
 
 const CameraLocationMap = ({ camera, onClose }) => {
   const [mapLoaded, setMapLoaded] = useState(false);
 
-  // Camera location data with coordinates
-  const cameraLocations = {
-    'Highway 101 - Northbound': {
-      lat: 37.7749,
-      lng: -122.4194,
-      address: 'Highway 101, Mile 45.2, San Francisco, CA'
-    },
-    'I-280 - Southbound': {
-      lat: 37.3382,
-      lng: -121.8863,
-      address: 'I-280, Exit 12, San Jose, CA'
-    },
-    'Highway 880 - Eastbound': {
-      lat: 37.8044,
-      lng: -122.2712,
-      address: 'Highway 880, Oakland, CA'
-    },
-    'Highway 5 - Northbound': {
-      lat: 38.5816,
-      lng: -121.4944,
-      address: 'Highway 5, Sacramento, CA'
-    },
-    'Highway 101 - Southbound': {
-      lat: 37.4419,
-      lng: -122.1430,
-      address: 'Highway 101, Palo Alto, CA'
-    },
-    'I-80 - Westbound': {
-      lat: 37.8715,
-      lng: -122.2730,
-      address: 'I-80, Berkeley, CA'
-    }
-  };
+  const location = camera.coordinates
+    ? { lat: camera.coordinates.lat, lng: camera.coordinates.lng, address: camera.location }
+    : { lat: 30.2672, lng: -97.7431, address: camera.location };
 
-  const location = cameraLocations[camera.name] || {
-    lat: 37.7749,
-    lng: -122.4194,
-    address: camera.location
-  };
-
-  // Generate Google Maps embed URL
-  const mapEmbedUrl = `https://www.google.com/maps/embed/v1/place?key=${GOOGLE_MAPS_API_KEY}&q=${location.lat},${location.lng}&zoom=15&maptype=roadmap`;
-
-  // Generate Google Maps navigation URL
+  // Keyless Google Maps embed - works without an API key
+  const mapEmbedUrl = `https://maps.google.com/maps?q=${location.lat},${location.lng}&z=15&output=embed`;
   const navigationUrl = `https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}`;
-
-  // Generate Google Maps search URL
   const searchUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.address)}`;
 
   const handleMapClick = () => {
@@ -66,15 +25,18 @@ const CameraLocationMap = ({ camera, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-4xl max-h-[90vh] overflow-hidden bg-gray-800 border-gray-700">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm" onClick={onClose}>
+      <Card
+        className="w-full max-w-4xl max-h-[90vh] overflow-hidden bg-zinc-950 border-white/[0.08] rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.7)]"
+        onClick={(e) => e.stopPropagation()}
+      >
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <MapPin className="w-6 h-6 text-red-500" />
               <div>
                 <CardTitle className="text-white text-xl">{camera.name}</CardTitle>
-                <p className="text-gray-400 text-sm">{location.address}</p>
+                <p className="text-zinc-500 text-sm">{location.address}</p>
               </div>
             </div>
             <div className="flex items-center space-x-2">
@@ -87,7 +49,7 @@ const CameraLocationMap = ({ camera, onClose }) => {
                 variant="ghost"
                 size="sm"
                 onClick={onClose}
-                className="text-gray-400 hover:text-white"
+                className="text-zinc-500 hover:text-white hover:bg-white/[0.06]"
               >
                 ✕
               </Button>
@@ -97,8 +59,8 @@ const CameraLocationMap = ({ camera, onClose }) => {
 
         <CardContent className="p-0">
           <div className="relative">
-            {/* Google Maps Embed */}
-            <div className="relative w-full h-96 bg-gray-700">
+            {/* Google Maps Embed (keyless) */}
+            <div className="relative w-full h-96 bg-zinc-900">
               <iframe
                 src={mapEmbedUrl}
                 width="100%"
@@ -108,42 +70,35 @@ const CameraLocationMap = ({ camera, onClose }) => {
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
                 onLoad={() => setMapLoaded(true)}
-                onError={() => setMapLoaded(true)} // Fallback if map fails to load
-                className="cursor-pointer"
-                onClick={handleMapClick}
+                onError={() => setMapLoaded(true)}
                 title={`Map of ${camera.name}`}
               />
-              
+
               {/* Loading overlay */}
               {!mapLoaded && (
-                <div className="absolute inset-0 bg-gray-700 flex items-center justify-center">
+                <div className="absolute inset-0 bg-zinc-900 flex items-center justify-center">
                   <div className="text-center">
                     <div className="w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                    <p className="text-gray-400">Loading map...</p>
+                    <p className="text-zinc-500">Loading map...</p>
                   </div>
                 </div>
               )}
 
-              {/* Click overlay */}
-              <div className="absolute inset-0 bg-transparent cursor-pointer" onClick={handleMapClick}>
-                <div className="absolute top-4 left-4 bg-black bg-opacity-75 text-white px-3 py-2 rounded-lg text-sm">
-                  Click to open in Google Maps
-                </div>
-                <div className="absolute bottom-4 right-4 bg-red-600 text-white px-3 py-2 rounded-lg text-sm">
-                  📍 {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
-                </div>
+              {/* Coordinates chip */}
+              <div className="absolute bottom-4 right-4 bg-red-600 text-white px-3 py-2 rounded-lg text-sm pointer-events-none">
+                📍 {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
               </div>
             </div>
 
             {/* Action buttons */}
-            <div className="p-4 bg-gray-800 border-t border-gray-700">
+            <div className="p-4 bg-zinc-950 border-t border-white/[0.06]">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <div className="text-sm text-gray-300">
+                  <div className="text-sm text-zinc-400">
                     <span className="font-medium">Coordinates:</span> {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
                   </div>
-                  <div className="text-sm text-gray-300">
-                    <span className="font-medium">Status:</span> 
+                  <div className="text-sm text-zinc-400">
+                    <span className="font-medium">Status:</span>
                     <span className={`ml-1 ${camera.status === 'online' ? 'text-green-400' : 'text-red-400'}`}>
                       {camera.status.toUpperCase()}
                     </span>
@@ -154,7 +109,7 @@ const CameraLocationMap = ({ camera, onClose }) => {
                     variant="outline"
                     size="sm"
                     onClick={handleMapClick}
-                    className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                    className="bg-white text-black border-gray-300 hover:bg-zinc-200 hover:text-black"
                   >
                     <ExternalLink className="w-4 h-4 mr-2" />
                     Open in Maps
