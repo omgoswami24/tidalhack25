@@ -2,10 +2,11 @@ import json
 import os
 import urllib.error
 import urllib.request
-from datetime import datetime
 from typing import Dict, Optional
 
 from dotenv import load_dotenv
+
+from alert_time import alert_timestamp
 
 # Same reasoning as the Twilio service: load config here rather than relying on
 # the importer, because this module builds its singleton at import time.
@@ -62,7 +63,7 @@ class DiscordAlertService:
         # and reads as though it just occurred.
         if incident_data.get('isLive'):
             fields.append(
-                {'name': 'Time', 'value': datetime.now().strftime('%I:%M %p'), 'inline': True}
+                {'name': 'Time', 'value': alert_timestamp(incident_data), 'inline': True}
             )
 
         payload = {

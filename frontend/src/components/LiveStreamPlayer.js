@@ -2,13 +2,13 @@ import React, { useRef, useEffect, useState } from 'react';
 import Hls from 'hls.js';
 
 // Plays a live HLS traffic-camera stream (state DOTs publish these publicly).
-// Overlays the camera-local clock like a CCTV timestamp.
-const TZ_LABELS = {
-  'America/Los_Angeles': 'PT',
-  'America/Denver': 'MT',
-  'America/Chicago': 'CT',
-  'America/New_York': 'ET',
-};
+// Overlays a CCTV-style timestamp.
+//
+// Every camera is stamped in one timezone rather than its own local time. The
+// network spans four states, and an operator comparing tiles should not have to
+// convert between them to work out which event happened first.
+const DISPLAY_TZ = 'America/Chicago';
+const DISPLAY_TZ_LABEL = 'CT';
 
 // A live stream that drops out usually recovers; give up only after repeated
 // fatal errors so a momentary blip does not blank a working camera.
@@ -20,21 +20,21 @@ const MAX_RECOVERY_ATTEMPTS = 3;
 // from a feed that is still loading.
 const STARTUP_TIMEOUT_MS = 15000;
 
-const formatCameraTime = (tz) =>
+const formatCameraTime = () =>
   new Intl.DateTimeFormat('en-US', {
-    timeZone: tz,
+    timeZone: DISPLAY_TZ,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-    hour12: false,
+    hour12: true,
   }).format(new Date());
 
-const LiveStreamPlayer = ({ src, className = '', showClock = true, tz = 'America/Los_Angeles' }) => {
+const LiveStreamPlayer = ({ src, className = '', showClock = true }) => {
   const videoRef = useRef(null);
-  const [clock, setClock] = useState(formatCameraTime(tz));
+  const [clock, setClock] = useState(formatCameraTime());
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -103,9 +103,9 @@ const LiveStreamPlayer = ({ src, className = '', showClock = true, tz = 'America
 
   useEffect(() => {
     if (!showClock) return undefined;
-    const tick = setInterval(() => setClock(formatCameraTime(tz)), 1000);
+    const tick = setInterval(() => setClock(formatCameraTime()), 1000);
     return () => clearInterval(tick);
-  }, [showClock, tz]);
+  }, [showClock]);
 
   return (
     <div className={`relative overflow-hidden ${className}`}>
@@ -132,7 +132,7 @@ const LiveStreamPlayer = ({ src, className = '', showClock = true, tz = 'America
 
       {showClock && !failed && (
         <div className="absolute bottom-2 left-2 bg-black/70 text-white px-2 py-0.5 rounded text-[11px] font-mono pointer-events-none">
-          {clock} {TZ_LABELS[tz] || ''}
+          {clock} {DISPLAY_TZ_LABEL}
         </div>
       )}
     </div>

@@ -248,7 +248,6 @@ const SurveillanceGrid = ({ onIncidentDetected, onVideoClick }) => {
                 {video.isLive && video.streamUrl ? (
                   <LiveStreamPlayer
                     src={video.streamUrl}
-                    tz={video.tz}
                     className="w-full h-full object-cover"
                   />
                 ) : video.isLive && video.liveImageUrl ? (

@@ -1,8 +1,9 @@
 import os
 from twilio.rest import Client
 from typing import Dict, Optional
-from datetime import datetime
 from dotenv import load_dotenv
+
+from alert_time import alert_timestamp
 
 # Credentials come from safesight.env locally, or from real environment
 # variables in hosting (Vercel). Load the file here rather than relying on the
@@ -142,7 +143,7 @@ class TwilioAlertService:
         suffix = f". Threat level: {severity}."
         # Same reasoning as the Discord embed: only a live feed gets a time.
         if incident_data.get('isLive'):
-            suffix += f" Time: {datetime.now().strftime('%I:%M %p')}."
+            suffix += f" Time: {alert_timestamp(incident_data)}."
         suffix += " Respond ASAP."
 
         room = SMS_MAX_CHARS - len(prefix) - len(suffix)

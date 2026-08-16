@@ -278,7 +278,7 @@ const VideoDetailView = ({ video, onClose }) => {
                 }`}
               >
                 {video.isLive && video.streamUrl ? (
-                  <LiveStreamPlayer src={video.streamUrl} tz={video.tz} className="w-full h-full object-cover" />
+                  <LiveStreamPlayer src={video.streamUrl} className="w-full h-full object-cover" />
                 ) : video.isLive && video.liveImageUrl ? (
                   <LiveFeedImage url={video.liveImageUrl} alt={video.name} className="w-full h-full" />
                 ) : (
